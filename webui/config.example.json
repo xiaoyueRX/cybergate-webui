@@ -1,0 +1,18 @@
+{
+  "web_port": 51080,
+  "dns_port": 53053,
+  "controller_port": 9090,
+  "hotspot_iface": "wlan1",
+  "wifi_sta_iface": "wlan0",
+  "eth_iface": "eth0",
+  "cellular_iface": "rmnet_data3",
+  "local_gateway_ip": "192.168.43.1",
+  "local_domain_keyword": "k40s",
+  "upstream_dns": "223.5.5.5",
+  "softap_xml": "/data/misc/apexdata/com.android.wifi/WifiConfigStoreSoftAp.xml",
+  "watchdog_script": "",
+  "anti_cdrx_script": "",
+  "tc_cake_bin": "",
+  "transport": "auto",
+  "adb_serial": "127.0.0.1:5555"
+}

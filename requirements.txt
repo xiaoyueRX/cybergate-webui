@@ -1,0 +1,5 @@
+# 核心功能只用 Python 标准库，以下均为可选增强：
+#
+# Pillow —— 屏幕投屏的 JPEG 压缩/缩放。不装也能跑，投屏功能自动降级
+#           （cybergate.py 里 import 失败会置 Image=None 并跳过压缩）。
+Pillow>=9.0 ; platform_system != "Android"

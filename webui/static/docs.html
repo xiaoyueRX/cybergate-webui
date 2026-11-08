@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📖 CyberGate · 使用指南与排障手册</title>
+    <style>
+        :root {
+            --bg-base: #080b11;
+            --bg-card: rgba(15, 23, 42, 0.75);
+            --bg-card-hover: rgba(30, 41, 59, 0.85);
+            --border-card: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(6, 182, 212, 0.35);
+            --accent-cyan: #06b6d4;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            line-height: 1.7;
+            padding: 24px;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+        }
+
+        /* Top Header */
+        .manual-header {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 24px 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .manual-title h1 {
+            font-size: 22px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .manual-title p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        .manual-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-card);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.16);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            border: none;
+            box-shadow: 0 2px 10px rgba(6, 182, 212, 0.4);
+        }
+
+        .action-btn.primary:hover {
+            box-shadow: 0 4px 16px rgba(6, 182, 212, 0.6);
+        }
+
+        /* Quick Navigation Bar */
+        .toc-bar {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-card);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toc-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 4px;
+        }
+
+        .toc-link {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .toc-link:hover {
+            color: #fff;
+            background: rgba(6, 182, 212, 0.15);
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        /* Section Cards */
+        .doc-section {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .doc-section:target {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 12px;
+        }
+
+        .section-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .section-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        /* Content Elements */
+        p {
+            margin-bottom: 12px;
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 14px;
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        /* Callout / Alert Boxes */
+        .alert {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin: 14px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .alert-info {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #7dd3fc;
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fde68a;
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+        }
+
+        /* Code Blocks & Command Copy */
+        .code-box {
+            background: #040810;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: #38bdf8;
+            position: relative;
+            overflow-x: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .code-box code {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #cbd5e1;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-left: 10px;
+            transition: all 0.15s;
+        }
+
+        .copy-btn:hover {
+            background: var(--accent-cyan);
+            color: #000;
+            border-color: var(--accent-cyan);
+        }
+
+        /* Tables */
+        .doc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 13px;
+        }
+
+        .doc-table th, .doc-table td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .doc-table th {
+            background: rgba(255, 255, 255, 0.04);
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .doc-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .pill {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            background: rgba(6, 182, 212, 0.12);
+            color: var(--accent-cyan);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(6, 182, 212, 0.25);
+        }
+
+        /* Diagram Box */
+        .topology-box {
+            background: #040810;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 14px 0;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.5;
+            color: #7dd3fc;
+            overflow-x: auto;
+        }
+
+        /* Footer */
+        .manual-footer {
+            text-align: center;
+            padding: 30px 0 10px;
+            color: var(--text-muted);
+            font-size: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 30px;
+        }
+
+        /* Toast */
+        #toast {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #0f172a;
+            border: 1px solid var(--accent-cyan);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 13px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            z-index: 99999;
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+<style>
+.card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 18px 22px; margin: 14px 0; }
+h1 { font-size: 26px; margin: 18px 0 8px; }
+h2 { font-size: 19px; color: var(--accent-cyan); margin: 26px 0 10px; border-left: 4px solid var(--accent-cyan); padding-left: 12px; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+th, td { padding: 8px 12px; border-bottom: 1px solid var(--border-card); text-align: left; font-size: 13.5px; }
+th { color: var(--accent-cyan); font-weight: 600; }
+code { background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 12.5px; color: var(--accent-green); }
+</style>
+</head>
+<body>
+
+<div style="max-width: 1000px; margin: 0 auto;">
+<h1>📖 CyberGate · 使用手册</h1>
+<p style="color: var(--text-secondary);">通用手册。具体设备的架构、脚本清单、参数请以你自己的部署为准。</p>
+
+<h2>🧭 1. 访问入口</h2>
+<div class="card">
+<table>
+<tr><th>服务</th><th>地址</th><th>说明</th></tr>
+<tr><td>控制台</td><td>http://&lt;手机IP&gt;:&lt;web_port&gt;/</td><td>全功能管理（本手册宿主）</td></tr>
+<tr><td>代理面板</td><td>控制台内「代理面板」Tab</td><td>需设备上有 mihomo/clash 的 external-controller</td></tr>
+<tr><td>网盘</td><td>http://&lt;手机IP&gt;:&lt;webdav_port&gt;/</td><td>WebDAV（需另启 webdav_server.py）</td></tr>
+</table>
+<p>本地域名（如 <code>k40s.com</code>）解析依赖内置 DNS + 端口 53 重定向，见 <code>docs/ADAPTING.md</code>。不需要可忽略。</p>
+</div>
+
+<h2>🛡️ 2. 面板与外部守护的关系</h2>
+<div class="card">
+<p>CyberGate 是<b>观察与控制面板</b>，本身不建立网络规则。CAKE/DSCP/NAT/DHCP/代理等
+底座由你自己的 keeper 脚本或工具维护。面板读取它们的状态、并可开关部分动作。</p>
+<p>因此：面板上某张卡片报错，通常意味着对应的外部脚本/二进制在你的设备上不存在
+（config 里相应项留空即可，不影响其他功能）。</p>
+</div>
+
+<h2>🚨 3. 排障思路</h2>
+<div class="card">
+<p>1. 先确认手机自身有网（蜂窝正常）。</p>
+<p>2. <code>curl http://127.0.0.1:&lt;web_port&gt;/api/status</code> 看后端 JSON 是否正常。</p>
+<p>3. 日志在 <code>/data/local/tmp/cybergate.log</code>。</p>
+<p>4. 单个卡片异常 = 该命令/路径在你设备上不可用，见 <code>docs/ADAPTING.md</code> 逐项点亮。</p>
+</div>
+
+<h2>📶 4. 无线参数建议（通用）</h2>
+<div class="card">
+<p>热点优先用 5GHz + 80MHz（延迟与吞吐均衡）；信道避开雷达段(52-64)与拥堵段，
+用 <code>iw dev wlan1 scan</code> 或 Cellular/Wi-Fi 分析工具看邻居再定。</p>
+<p>Wi-Fi 省电模式（power_save）会增加延迟抖动，做网关时建议关闭。</p>
+</div>
+
+<h2>🔋 5. 供电</h2>
+<div class="card">
+<p>长期插电做网关，若设备支持旁路供电(Bypass)可保护电池。控制台总览显示温度/功率/电压。</p>
+</div>
+
+<h2>💻 6. 技术架构</h2>
+<div class="card">
+<p>后端：单文件 Python（标准库），跑在设备上以 root 执行系统命令；也可在 PC 经 adb 远程管理。</p>
+<p>前端：单页 HTML，全部相对路径调 REST API，天然跨设备。</p>
+<p>流量记账：SQLite（自动建表建文件）。投屏：screencap 帧（可选 Pillow 压缩）。</p>
+<p>接口清单见 <code>docs/API.md</code>，适配见 <code>docs/ADAPTING.md</code>。</p>
+</div>
+
+<p style="color: var(--text-muted); margin-top: 24px; font-size: 12px;">CyberGate WebUI · 开源版</p>
+</div>
+</body>
+</html>

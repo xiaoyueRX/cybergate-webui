@@ -1,0 +1,3432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CyberGate · 手机蜂窝网关控制台</title>
+    <style>
+        :root {
+            --bg-base: #080b11;
+            --bg-surface: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.75);
+            --border-card: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(6, 182, 212, 0.3);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding-bottom: 50px;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.12) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* Header */
+        header {
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-card);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 0 16px rgba(6, 182, 212, 0.4);
+        }
+
+        .logo-title h1 {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge-online {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .badge-warn {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid var(--accent-amber);
+            color: var(--accent-amber);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .badge-bypass {
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 0 8px rgba(6, 182, 212, 0.25);
+        }
+
+        .badge-offline {
+            background: rgba(148, 163, 184, 0.15);
+            border: 1px solid #64748b;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.2); }
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            flex-wrap: wrap;
+        }
+
+        .pill-tag {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-card);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 16px 16px 0;
+        }
+
+        /* KPI Bar */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card);
+            border-radius: 12px;
+            padding: 12px 14px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .kpi-value {
+            font-size: 20px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--text-primary);
+        }
+
+        .kpi-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Navigation Tab Bar */
+        .tab-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-card);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tab-btn.active {
+            color: #fff;
+            background: rgba(6, 182, 212, 0.15);
+            border-color: var(--border-glow);
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards and Grids */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 16px;
+            position: relative;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 10px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+        }
+
+        /* Controls Rows */
+        .ctrl-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            gap: 12px;
+        }
+
+        .ctrl-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .ctrl-label {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .ctrl-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Custom Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #334155;
+            transition: .25s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .25s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Buttons & Inputs */
+        .btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-card);
+            color: #fff;
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: var(--accent-cyan);
+            color: #041017;
+            border: none;
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.35);
+        }
+
+        .btn-primary:hover {
+            background: #22d3ee;
+            color: #000;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.4);
+            color: #fff;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 6px;
+        }
+
+        select, input[type="text"], input[type="password"], input[type="number"], input[type="time"] {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-card);
+            color: #fff;
+            padding: 7px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
+        }
+
+        /* Chart Canvas */
+        .chart-container {
+            width: 100%;
+            height: 185px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .kpi-mini-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            transition: all 0.2s ease;
+        }
+        .kpi-mini-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+        .kpi-mini-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+        .kpi-mini-val {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+        }
+        .kpi-mini-sub {
+            font-size: 11px;
+            color: #64748b;
+            font-family: var(--font-mono);
+        }
+        .history-tab-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .history-tab-btn.active, .history-tab-btn:hover {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: #06b6d4;
+            color: #22d3ee;
+        }
+
+        /* Tables */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        th {
+            text-align: left;
+            padding: 8px 10px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-card);
+            font-weight: 600;
+        }
+
+        td {
+            padding: 9px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-family: var(--font-mono);
+        }
+
+        /* Terminal & Logs Screen */
+        .terminal-box {
+            background: #030712;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: #38bdf8;
+            height: 380px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+
+        /* Phone Mockup Screen */
+        .screen-layout {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .phone-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .phone-mockup {
+            width: 320px;
+            height: 680px;
+            background: #030712;
+            border-radius: 32px;
+            border: 8px solid #1e293b;
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.25), 0 20px 40px -10px rgba(0, 0, 0, 0.8);
+            position: relative;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .phone-notch {
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 10px;
+            height: 10px;
+            background: #000;
+            border-radius: 50%;
+            border: 1.5px solid #334155;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .phone-display {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #000;
+            cursor: crosshair;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #screen-canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .phone-status-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--accent-cyan);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 15;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .phone-nav-bar {
+            height: 40px;
+            background: rgba(15, 23, 42, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .phone-nav-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 16px;
+            width: 33.3%;
+            height: 100%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .phone-nav-btn:hover { color: var(--accent-cyan); }
+
+        .touch-ripple {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(6, 182, 212, 0.6);
+            border: 2px solid #fff;
+            transform: translate(-50%, -50%) scale(0.3);
+            pointer-events: none;
+            animation: touchRipple 0.3s ease-out forwards;
+            z-index: 25;
+        }
+
+        @keyframes touchRipple {
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+        }
+
+        /* Toast notification */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-surface);
+            border: 1px solid var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            display: none;
+            z-index: 1000;
+        }
+
+        /* Progress Bar */
+        .progress-bar-bg {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 9999px;
+            height: 8px;
+            overflow: hidden;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+            border-radius: 9999px;
+            transition: width 0.3s ease;
+        }
+
+        /* Mobile specific enhancements */
+        @media (max-width: 768px) {
+            header { padding: 10px 14px; }
+            .header-meta { font-size: 11px; }
+            .container { padding: 12px 10px 0; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .kpi-card { padding: 10px; }
+            .kpi-value { font-size: 17px; }
+            .cards-grid { grid-template-columns: 1fr; gap: 12px; }
+            .phone-mockup { width: 300px; height: 620px; }
+        }
+
+        /* CPE Footer & Quick Docs */
+        .cpe-footer {
+            margin-top: 24px;
+            margin-bottom: 24px;
+        }
+
+        .footer-card {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .footer-ver {
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 9999px;
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            font-family: var(--font-mono);
+        }
+
+        .footer-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .footer-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .footer-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 13px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-card);
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .footer-btn:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        .footer-btn.primary {
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            border: none;
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(6, 182, 212, 0.4);
+        }
+
+        .footer-btn.primary:hover {
+            box-shadow: 0 4px 16px rgba(6, 182, 212, 0.6);
+        }
+
+        .footer-bottom-info {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 10px;
+        }
+
+        /* Doc Modal Overlay */
+        .doc-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .doc-modal-content {
+            background: #080b11;
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 1000px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+        }
+
+        .doc-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .doc-modal-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .doc-modal-close {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #cbd5e1;
+            font-size: 16px;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .doc-modal-close:hover {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .doc-modal-iframe {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #080b11;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-area">
+            <div class="logo-icon">⚡</div>
+            <div class="logo-title">
+                <h1>CyberGate <span class="badge-online"><span class="pulse-dot"></span> 5G CPE</span></h1>
+            </div>
+        </div>
+        <div class="header-meta">
+            <span class="pill-tag">📱 <span id="val-uptime">--</span></span>
+            <span class="pill-tag" style="color: var(--accent-cyan); font-weight: 600;">🌐 本机域名</span>
+            <span class="pill-tag" id="val-tailscale">100.65.203.43</span>
+            <span class="badge-online" id="status-cpe-state">全栈双下行正常</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Top KPI Dashboard -->
+        <div class="kpi-grid">
+            <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('overview')" title="点击查看实时流速波形大屏">
+                <div class="kpi-title">⬇️ 下行实时速率</div>
+                <div class="kpi-value" style="color: var(--accent-cyan);" id="kpi-rx">0.0 <span style="font-size: 12px;">Mbps</span></div>
+                <div class="kpi-sub" id="kpi-rx-total">累计: 0 MB</div>
+            </div>
+            <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('overview')" title="点击查看实时流速波形大屏">
+                <div class="kpi-title">⬆️ 上行实时速率</div>
+                <div class="kpi-value" style="color: var(--accent-purple);" id="kpi-tx">0.0 <span style="font-size: 12px;">Mbps</span></div>
+                <div class="kpi-sub" id="kpi-tx-total">累计: 0 MB</div>
+            </div>
+            <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('cellular')" title="点击查看 5G 射频基站与锁频">
+                <div class="kpi-title">📶 5G 射频指标</div>
+                <div class="kpi-value" style="color: var(--accent-green);" id="kpi-sinr">32 <span style="font-size: 12px;">dB SINR</span></div>
+                <div class="kpi-sub" id="kpi-rsrp">RSRP: -77 dBm (n78)</div>
+            </div>
+            <div class="kpi-card" style="cursor: pointer;" onclick="openBatteryModal()" title="点击查看电池健康与旁路供电详情">
+                <div class="kpi-title">🔋 电池状态 / 实时电量</div>
+                <div class="kpi-value" id="kpi-batt-main" style="color: var(--accent-cyan); display: flex; align-items: baseline; gap: 8px;">--% <span style="font-size: 13px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8;" id="kpi-batt-tag">--</span></div>
+                <div class="kpi-sub" id="kpi-batt-sub">温度: --°C | 功率: -- W</div>
+            </div>
+            <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('webdav')" title="点击查看内部存储全盘网盘">
+                <div class="kpi-title">💾 内部存储网盘</div>
+                <div class="kpi-value" id="kpi-storage" style="font-size: 17px;">-- GB 可用</div>
+                <div class="kpi-sub" id="kpi-storage-sub">已用: --% (/sdcard)</div>
+            </div>
+            <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('performance')" title="点击查看 CPU/GPU 与应用进程管理">
+                <div class="kpi-title">🧠 CPU 负载 / 内存</div>
+                <div class="kpi-value" style="font-size: 16px;" id="kpi-cpu">--</div>
+                <div class="kpi-sub" id="kpi-ram">RAM: --% | ZRAM 8G</div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('overview')">📊 实时流速大屏</button>
+            <button class="tab-btn" onclick="switchTab('cellular')">📶 5G 射频与锁频</button>
+            <button class="tab-btn" onclick="switchTab('performance')">⚡ 系统性能与进程</button>
+            <button class="tab-btn" onclick="switchTab('wifi-client')">📡 Wi-Fi 客户端设置</button>
+            <button class="tab-btn" onclick="switchTab('hotspot')">🔥 5G 热点与定时调度</button>
+            <button class="tab-btn" onclick="switchTab('webdav')">💾 局域网高速网盘</button>
+            <button class="tab-btn" onclick="switchTab('clients')">👥 已连设备与限速</button>
+            <button class="tab-btn" onclick="switchTab('routing')">🎛️ 路由与电竞流控</button>
+            <button class="tab-btn" onclick="switchTab('screen')">📱 实时真机投屏控制</button>
+            <button class="tab-btn" onclick="switchTab('logs')">📜 系统日志大屏</button>
+            <button class="tab-btn" onclick="switchTab('proxypanel')">🛡️ 代理面板 (Mihomo)</button>
+            <button class="tab-btn" onclick="switchTab('terminal')">💻 Root Web 终端</button>
+        </div>
+
+        <!-- ==================== Tab 1: Overview ==================== -->
+        <div id="tab-overview" class="tab-content active">
+            <div class="card" style="margin-bottom: 16px;">
+                <div class="card-header">
+                    <div class="card-title">📈 实时动态流速波形图 (Throughput Live Monitor)</div>
+                    <div style="display: flex; gap: 12px; font-size: 12px; font-family: var(--font-mono); flex-wrap: wrap;">
+                        <span id="chart-rx-live" style="color: var(--accent-cyan); font-weight: 600;">■ 下行: 0.0 Mbps</span>
+                        <span id="chart-tx-live" style="color: var(--accent-purple); font-weight: 600;">■ 上行: 0.0 Mbps</span>
+                        <span id="chart-peak-live" style="color: var(--text-muted);">峰值: 0.0 Mbps</span>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+
+            <!-- ==================== 📊 历史流量统计与报表 ==================== -->
+            <div class="card" style="margin-bottom: 16px;">
+                <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="card-title">📊 历史流量统计与报表 (Traffic Accounting)</div>
+                        <span class="pill-tag" style="font-size: 11px; border-color: rgba(6, 182, 212, 0.3); color: #22d3ee;">SQLite 365天滚动存储</span>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <button class="history-tab-btn active" id="btn-hist-hourly" onclick="switchHistoryTab('hourly')">📅 今日小时 (24h)</button>
+                        <button class="history-tab-btn" id="btn-hist-daily" onclick="switchHistoryTab('daily')">📆 近30天趋势</button>
+                        <button class="history-tab-btn" id="btn-hist-monthly" onclick="switchHistoryTab('monthly')">🗓️ 近12个月</button>
+                    </div>
+                </div>
+
+                <!-- 4 KPI Summary Cards -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px;">
+                    <div class="kpi-mini-card">
+                        <div class="kpi-mini-title">📅 今日流量 (Today)</div>
+                        <div class="kpi-mini-val" id="stat-today-total">0.0 MB</div>
+                        <div class="kpi-mini-sub" id="stat-today-sub">↓ 0 B · ↑ 0 B</div>
+                    </div>
+                    <div class="kpi-mini-card">
+                        <div class="kpi-mini-title">📆 本周用量 (This Week)</div>
+                        <div class="kpi-mini-val" id="stat-week-total">0.0 MB</div>
+                        <div class="kpi-mini-sub" id="stat-week-sub">昨日: 0.0 MB</div>
+                    </div>
+                    <div class="kpi-mini-card">
+                        <div class="kpi-mini-title">🗓️ 本月用量 (This Month)</div>
+                        <div class="kpi-mini-val" id="stat-month-total">0.0 MB</div>
+                        <div class="kpi-mini-sub" id="stat-month-sub">上月: 0.0 MB</div>
+                    </div>
+                    <div class="kpi-mini-card">
+                        <div class="kpi-mini-title">📈 近一年累计 (365 Days)</div>
+                        <div class="kpi-mini-val" id="stat-year-total">0.0 GB</div>
+                        <div class="kpi-mini-sub" id="stat-year-sub">60s内存缓冲 · 防闪存磨损</div>
+                    </div>
+                </div>
+
+                <!-- History Chart Canvas with interactive tooltip -->
+                <div class="chart-container" style="height: 185px; position: relative;">
+                    <canvas id="historyChart"></canvas>
+                    <div id="hist-tooltip" style="position: absolute; display: none; pointer-events: none; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(6, 182, 212, 0.5); border-radius: 8px; padding: 6px 10px; font-size: 11px; font-family: var(--font-mono); color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.6); z-index: 10;"></div>
+                </div>
+            </div>
+
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📶 5G 蜂窝活动连接</div>
+                        <span class="badge-online" id="ov-cell-badge">5G SA 活跃</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">运营商与频段</span>
+                        <span class="pill-tag" id="ov-cell-op">中国电信 5G (Band n78)</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">蜂窝出口 IP</span>
+                        <span class="pill-tag" id="ov-cell-ip">--</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">出栈 TTL / MTU</span>
+                        <span class="pill-tag">TTL=64 | MTU=1420 (防风控)</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">⚡ USB-C 千兆以太网 (上游下发)</div>
+                        <span class="badge-online" id="ov-eth-badge">以太网共享中</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">物理线缆检测</span>
+                        <span class="pill-tag" id="ov-eth-carrier">已连接千兆线缆</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">分配网关 IP</span>
+                        <span class="pill-tag" id="ov-eth-ip">--</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">下挂设备</span>
+                        <span class="pill-tag">上游路由器</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📡 Wi-Fi 6 热点 (SoftAP)</div>
+                        <span class="badge-online" id="ov-ap-badge">热点已开启</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">热点网段 IP</span>
+                        <span class="pill-tag" id="ov-ap-ip">--</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">协议与频段</span>
+                        <span class="pill-tag">Wi-Fi 6 (802.11ax) 5GHz</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">免配直达域名</span>
+                        <span class="pill-tag" style="color: var(--accent-cyan);">本机域名</span>
+                    </div>
+                </div>
+
+                <div class="card" id="card-batt-health">
+                    <div class="card-header">
+                        <div class="card-title">🔋 硬件供电与电池健康管理</div>
+                        <span class="badge-bypass" id="ov-batt-badge">🛡️ 旁路供电保护中</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">实时电量与状态</span>
+                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: 600;" id="ov-batt-cap-text">--%</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">输入供电协议</span>
+                        <span class="pill-tag" id="ov-batt-usb">USB-PD (Type-C 拓展坞)</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">充放电实时功率</span>
+                        <span class="pill-tag" id="ov-batt-pwr">-- W (-- V / -- mA)</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">电池健康度 (容量)</span>
+                        <span class="pill-tag" id="ov-batt-health">--% (满充 -- / 设计 -- mAh)</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">电池充放循环次数</span>
+                        <span class="pill-tag" id="ov-batt-cycles">-- 次</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">电芯与充电芯片温度</span>
+                        <span class="pill-tag" id="ov-batt-temp">--°C</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Tab 2: 5G Cellular ==================== -->
+        <div id="tab-cellular" class="tab-content">
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🛰️ 5G SA 深度射频遥测</div>
+                        <span class="badge-online">基带锁死</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">运营商</span>
+                        <span class="pill-tag" id="cel-op">中国电信 (China Telecom)</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">移动国家/网络码 (PLMN)</span>
+                        <span class="pill-tag" id="cel-plmn">460-11</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">5G 频段 (NR Band)</span>
+                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;" id="cel-band">Band n78</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">NR-ARFCN 下行绝对频点</span>
+                        <span class="pill-tag" id="cel-arfcn">633984</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">物理小区识别码 (PCI)</span>
+                        <span class="pill-tag" id="cel-pci">90</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">跟踪区代码 (TAC)</span>
+                        <span class="pill-tag" id="cel-tac">12780032</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">5G 小区全局标识 (NCI)</span>
+                        <span class="pill-tag" id="cel-nci">52357247077</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📊 射频信号质量指标</div>
+                        <button class="btn btn-sm" onclick="fetchCellularDeep()">🔄 刷新射频</button>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>SS-RSRP 参考信号接收功率</span>
+                            <span class="ctrl-desc">范围: -140 ~ -40 dBm (越接近 -40 信号越强)</span>
+                        </div>
+                        <span class="pill-tag" style="color: var(--accent-green); font-weight: bold;" id="cel-rsrp">-77 dBm</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>SS-SINR 信噪比</span>
+                            <span class="ctrl-desc">>25 dB 为极佳无干扰净空频谱</span>
+                        </div>
+                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;" id="cel-sinr">32 dB (极度干净)</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>SS-RSRQ 参考信号接收质量</span>
+                            <span class="ctrl-desc">范围: -20 ~ -3 dB</span>
+                        </div>
+                        <span class="pill-tag" id="cel-rsrq">-11 dB</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>信号强度等级</span>
+                            <span class="ctrl-desc">Android 原生电平 (0~4)</span>
+                        </div>
+                        <span class="badge-online" id="cel-level">4 / 4 满格</span>
+                    </div>
+                    <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;">
+                        <button class="btn btn-primary" onclick="triggerAction('refresh_cellular')">⚡ 飞行模式一键刷新基带重搜网</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🔒 5G 偏好与锁频模式</div>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>网络接入偏好</span>
+                            <span class="ctrl-desc">强制 SA 纯 5G 模式可杜绝 4G 回落与频段切换延迟</span>
+                        </div>
+                        <select id="sel-network-mode" onchange="changeNetworkMode(this.value)">
+                            <option value="sa_only" selected>🚀 5G SA 纯独立组网 (锁定 n78/n1/n28)</option>
+                            <option value="auto">⚖️ 5G SA/NSA 双模自适应</option>
+                            <option value="lte_only">📶 4G LTE 应急备用</option>
+                        </select>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>Anti-C-DRX 5G 射频防休眠</span>
+                            <span class="ctrl-desc">200ms 心跳杜绝基站 30ms 射频唤醒抖动</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chk-cel-anti-cdrx" onchange="toggleAntiCDRX(this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 周边基站小区雷达扫描与锁定 (Cell Radar & Band Lock) -->
+            <div class="card" style="margin-top: 16px;">
+                <div class="card-header">
+                    <div class="card-title">📡 周边基站小区雷达扫描与锁定 (Nearby Cell Radar & Lock)</div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <select id="sel-cell-scan-mode" onchange="fetchNearbyCells()" style="padding: 5px 8px; font-size: 11px;">
+                            <option value="all" selected>🌐 扫描全部制式 (5G NR + 4G LTE)</option>
+                            <option value="nr">🚀 仅搜 5G NR 基站小区</option>
+                            <option value="lte">📶 仅搜 4G LTE 基站小区</option>
+                        </select>
+                        <button class="btn btn-sm btn-primary" onclick="fetchNearbyCells()">🔍 扫描周边基站小区</button>
+                        <button class="btn btn-sm" onclick="fetchNearbyCells(1)">⚡ 触发基带重选搜网</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>制式 / 运营商</th>
+                                <th>频段 (Band)</th>
+                                <th>物理小区 (PCI)</th>
+                                <th>频点 (ARFCN)</th>
+                                <th>跟踪区 (TAC)</th>
+                                <th>小区标识 (NCI)</th>
+                                <th>信号质量 (RSRP / SINR)</th>
+                                <th>连接状态</th>
+                                <th>基带锁定</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cells-list-body">
+                            <tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 20px;">点击上方【扫描周边基站小区】按钮获取附近基站射频信号...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Tab 3: System Performance & Process Manager ==================== -->
+        <div id="tab-performance" class="tab-content">
+            <!-- 4 Performance KPI Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 20px;">
+                <div class="card" style="padding: 16px;">
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: flex; justify-content: space-between;">
+                        <span>🧠 骁龙 870 CPU 负载</span>
+                        <span id="perf-cpu-badge" class="badge badge-green">8 核 (1+3+4)</span>
+                    </div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--accent-cyan); font-family: var(--font-mono);" id="perf-cpu-usage">--%</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-cpu-load">Load: -- / -- / --</div>
+                </div>
+
+                <div class="card" style="padding: 16px;">
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: flex; justify-content: space-between;">
+                        <span>🎮 Adreno 650 GPU 状态</span>
+                        <span id="perf-gpu-badge" class="badge badge-purple">GPU</span>
+                    </div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--accent-purple); font-family: var(--font-mono);" id="perf-gpu-usage">--%</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-gpu-freq">主频: -- MHz</div>
+                </div>
+
+                <div class="card" style="padding: 16px;">
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: flex; justify-content: space-between;">
+                        <span>💾 LPDDR5 物理内存</span>
+                        <span class="badge badge-blue">8 GB</span>
+                    </div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--accent-green); font-family: var(--font-mono);" id="perf-mem-usage">--%</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-mem-detail">已用: -- MB / 总计: -- MB</div>
+                </div>
+
+                <div class="card" style="padding: 16px;">
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: flex; justify-content: space-between;">
+                        <span>🗄️ ZRAM 极速内存拓展</span>
+                        <span class="badge badge-amber">24 GB</span>
+                    </div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--accent-amber); font-family: var(--font-mono);" id="perf-swap-usage">--%</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-swap-detail">已用: -- MB / 总计: -- MB</div>
+                </div>
+            </div>
+
+            <!-- Process Table Card -->
+            <div class="card">
+                <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
+                    <div class="card-title">📱 实时运行应用与进程监控 (Process & Task Manager)</div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="proc-search" placeholder="🔍 搜索应用/进程/PID..." oninput="renderProcessTable()" style="background: rgba(15,23,42,0.8); border: 1px solid var(--border-card); color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12px; outline: none;">
+                        <button type="button" class="btn btn-sm" onclick="fetchProcesses()">🔄 立即刷新</button>
+                        <label style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" id="proc-auto-refresh" checked onchange="toggleProcAutoRefresh()"> 3s 自动轮询
+                        </label>
+                    </div>
+                </div>
+                <div class="table-responsive" style="max-height: 540px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">PID</th>
+                                <th>应用 / 进程名称</th>
+                                <th style="width: 110px;">用户</th>
+                                <th style="width: 80px;">CPU %</th>
+                                <th style="width: 100px;">物理内存 (RES)</th>
+                                <th style="width: 80px;">状态</th>
+                                <th style="width: 110px; text-align: right;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="proc-tbody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">正在加载系统进程列表...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Tab 4: Wi-Fi Client ==================== -->
+        <div id="tab-wifi-client" class="tab-content">
+            <!-- 核心防断网科普与 ADB 关系指引 -->
+            <div class="card" style="border: 1px solid rgba(6, 182, 212, 0.4); background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(139, 92, 246, 0.05)); margin-bottom: 14px; padding: 12px 14px;">
+                <div style="font-size: 13px; font-weight: 600; color: var(--accent-cyan); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                    💡 核心防断网科普：手机 Wi-Fi 开关与无线 ADB (端口 5555) 的关系
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+                    • <b>无线 ADB (5555) 根本不需要打开手机 Wi-Fi！</b><br>
+                    手机通过 USB 网卡接入上游路由器，电脑访问 <code>本机IP:5555</code> 走以太网物理线直连。即使手机 Wi-Fi 彻底关闭，ADB 也 100% 满血秒连！<br>
+                    • <b>千万不要让手机再连接上游路由器的 Wi-Fi：</b><br>
+                    上游路由器的网络由手机以太网供给，若手机再连该路由器 Wi-Fi 会形成死锁回环（互等对方供网）导致全网中断！系统已帮您遗忘该网络，安全无虞。<br>
+                    • <b>最佳实践建议：</b> 平时建议保持下方 Wi-Fi 主开关<b>处于关闭状态</b>，既省电降温，又可彻底杜绝网络回环！
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 16px;">
+                <div class="card-header">
+                    <div class="card-title">📶 手机 Wi-Fi 客户端 (原生无线设置)</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" onclick="scanWifiList()">🔍 扫描周边 Wi-Fi</button>
+                    </div>
+                </div>
+                <div class="ctrl-row">
+                    <div class="ctrl-label">
+                        <span>Wi-Fi 无线网卡硬件总开关</span>
+                        <span class="ctrl-desc">开启或彻底关闭手机 Wi-Fi 模块（关闭可避免意外连接或节省电量）</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="chk-wifi-master" onchange="toggleWifiMaster(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="ctrl-row">
+                    <div class="ctrl-label">
+                        <span>当前 Wi-Fi 状态</span>
+                        <span class="ctrl-desc">作为客户端连接到其他路由或校园网</span>
+                    </div>
+                    <span class="pill-tag" id="val-wifi-state">扫描就绪</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📡 周边可用 Wi-Fi 列表</div>
+                    <span id="wifi-scan-status" style="font-size: 12px; color: var(--text-muted);">点击任意网络输入密码连接</span>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SSID (网络名称)</th>
+                                <th>频段</th>
+                                <th>信号强度</th>
+                                <th>加密类型</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wifi-list-body">
+                            <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">点击上方【扫描周边 Wi-Fi】按钮获取热点列表...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Tab 4: Hotspot & Schedule ==================== -->
+        <div id="tab-hotspot" class="tab-content">
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🔥 5G 热点 (SoftAP) 核心参数配置</div>
+                        <span class="badge-online" id="badge-hotspot-status">就绪</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>热点总开关</span>
+                            <span class="ctrl-desc">即时启用或停用 Wi-Fi 6 热点</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chk-hotspot-active" onchange="toggleHotspot(this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">热点名称 (SSID)</span>
+                        <input type="text" id="hs-ssid" value="CyberGate" style="width: 180px;">
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">热点密码</span>
+                        <input type="text" id="hs-password" value="" placeholder="热点密码" style="width: 180px;">
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">发射频段</span>
+                        <select id="hs-band" style="width: 180px;">
+                            <option value="2" selected>5GHz (高速电竞 / 推荐)</option>
+                            <option value="1">2.4GHz (强力穿墙)</option>
+                        </select>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>Wi-Fi 6 (802.11ax) 高速协议</span>
+                            <span class="ctrl-desc">开启 1200Mbps 高并发与低延迟</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="hs-ax" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>闲置自动休眠关闭</span>
+                            <span class="ctrl-desc">建议关闭：避免没有设备连接时热点自动断开</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="hs-auto-shutdown">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="margin-top: 14px;">
+                        <button class="btn btn-primary" style="width: 100%;" onclick="saveHotspotConfig()">💾 保存并立即应用热点配置</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🛡️ 热点常开架构 (2026-10 重构)</div>
+                        <span class="badge-online">常开锁定</span>
+                    </div>
+                    <div style="font-size: 13px; line-height: 1.8; color: var(--text-secondary);">
+                        <div>• <b>热点已配置为 24 小时常开</b>（AutoShutdown 从不），由系统 SoftAp 配置持久化，重启自动恢复。</div>
+                        <div>• <b>box-guard 守护</b>每 15 秒巡检：代理核心崩溃自动重启，连续失败自动回退纯直连，热点永不断网。</div>
+                        <div>• <b>建议锁定干净信道（按你的环境扫描后选择，5GHz + 80MHz 吞吐与延迟均衡）。</div>
+                        <div>• <b>旧「定时调度」已退役</b>：常开架构下排程无意义，相关后端消费逻辑已不存在。</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Tab 5: WebDAV Storage ==================== -->
+        <div id="tab-webdav" class="tab-content">
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💾 局域网高速网盘 (WebDAV Storage)</div>
+                        <span class="badge-online">🟢 运行中 (58080)</span>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                            <span>内部存储容量 (/sdcard)</span>
+                            <span id="dav-storage-text" style="font-family: var(--font-mono); color: var(--accent-cyan);">70.0 GB 可用 / 106.0 GB</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="dav-storage-bar" style="width: 34%;"></div>
+                        </div>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">局域网服务地址</span>
+                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;">http://&lt;网关&gt;:58080/</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">备用直连地址</span>
+                        <span class="pill-tag">http://192.168.1.1:58080/</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">挂载全盘路径</span>
+                        <span class="pill-tag">/sdcard (手机全部内部存储)</span>
+                    </div>
+                    <div style="margin-top: 14px; display: flex; gap: 10px;">
+                        <a href="http://&lt;网关&gt;:58080/" target="_blank" class="btn btn-primary" style="text-decoration: none; flex: 1; text-align: center;">📂 直接在浏览器打开网盘</a>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💻 电脑 / 手机多端挂载指引</div>
+                    </div>
+                    <div style="font-size: 12px; line-height: 1.6; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px;">
+                        <div><b>🪟 Windows 资源管理器映射为网络硬盘 (Z: 盘)：</b></div>
+                        <div style="background: rgba(0,0,0,0.5); padding: 8px 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-green); border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
+                            <span id="cmd-win-mount">net use Z: http://&lt;网关&gt;:58080 /persistent:yes</span>
+                            <button class="btn btn-sm btn-primary" onclick="copyToClipboard('net use Z: http://&lt;网关&gt;:58080 /persistent:yes')">📋 复制</button>
+                        </div>
+                        <div style="color: var(--text-muted); font-size: 11px;">
+                            💡 提示：按 <code>Win + R</code> 粘贴上方命令按回车，几秒后“此电脑”就会出现一个名为 <b>Z:</b> 的 100GB 本地磁盘，随存随取 PPT、作业、影音大文件！
+                        </div>
+                        <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
+                            <b>🍎 macOS / iOS：</b> Finder -> 前往 -> 连接服务器 -> 输入 <code>http://&lt;网关&gt;:58080</code>。
+                        </div>
+                        <div>
+                            <b>📱 Android：</b> MT 管理器 / CX 文件浏览器 -> 添加网络存储 -> WebDAV -> 地址填写 <code>&lt;网关&gt;:58080</code>。
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Tab 6: Clients & Rate Limiting ==================== -->
+        <div id="tab-clients" class="tab-content">
+            <div class="card" style="margin-bottom: 16px;">
+                <div class="card-header">
+                    <div class="card-title">🎛️ 全局整机与各网口带宽限速 (QoS Limiter)</div>
+                </div>
+                <div class="ctrl-row">
+                    <div class="ctrl-label">
+                        <span>整机出口 / 下行以太网速率限制</span>
+                        <span class="ctrl-desc">满血 CAKE 智能整流，杜绝大文件下载挤爆基站导致游戏跳 ping</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select id="sel-qos-limit" onchange="applyGlobalRateLimit(this.value)">
+                            <option value="0" selected>🚀 全速直通 (无限制)</option>
+                            <option value="500">⚡ 500 Mbps 限速</option>
+                            <option value="300">⚡ 300 Mbps (电竞推荐)</option>
+                            <option value="100">🛡️ 100 Mbps 限速</option>
+                            <option value="50">🛡️ 50 Mbps 限速</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header" style="flex-wrap: wrap; gap: 8px;">
+                    <div class="card-title">👥 当前已连终端清单（热点 + 上游路由器双端融合）</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn btn-sm" onclick="fetchClients()">🔄 刷新设备</button>
+                    </div>
+                </div>
+
+                <!-- Router Status Indicator -->
+                <div id="clients-router-status" style="margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; font-size: 12px; background: rgba(30,41,59,0.7); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <span id="clients-router-msg" style="color: var(--text-secondary);">🔍 正在探测 OpenWrt 路由器连接状态...</span>
+                    <span id="clients-count-badge" class="badge badge-cyan" style="font-size: 11px;">0 台终端在线</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>接入通道 / 来源</th>
+                                <th>设备名称 / 厂商</th>
+                                <th>设备 IP</th>
+                                <th>MAC 物理地址</th>
+                                <th>实时网速 (↓下行 / ↑上行)</th>
+                                <th>累计流量</th>
+                                <th>状态</th>
+                                <th>单机限速</th>
+                                <th style="text-align: right;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clients-body">
+                            <tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 20px;">正在加载设备列表...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Tab 7: Routing & Gaming ==================== -->
+        <div id="tab-routing" class="tab-content">
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🔌 USB-C 千兆以太网 (全自动热插拔看门狗)</div>
+                        <span class="badge-online">🟢 守护中</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>网关底座守护 (50-net-keeper)</span>
+                            <span class="ctrl-desc">每 10 秒自愈：IP/路由/NAT/DHCP/CAKE/跨网段互通。watchdog.sh 已退役，由 keeper 接管。</span>
+                        </div>
+                        <span class="badge-online">常驻自愈</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>手动强制唤醒 / 重置共享 (应急备用)</span>
+                            <span class="ctrl-desc">正常情况下插线自动连通；此开关仅供网络偶发卡死时手动重新触发</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chk-eth-tether" onchange="toggleEthTether(this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🎮 电竞流控与 CS2 VIP 染色</div>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>500 字节以下实时 UDP 动作优先</span>
+                            <span class="ctrl-desc">开枪/移动/跳跃同步包加冕 DSCP EF 电竞最高优先仓</span>
+                        </div>
+                        <span class="badge-online">已固化 keeper</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>CS2 / Steam SDR (27000:27065)</span>
+                            <span class="ctrl-desc">Valve 官方电竞专线加冕 DSCP EF</span>
+                        </div>
+                        <span class="badge-online">已固化 keeper</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>Wi-Fi 6 射频省电模式</span>
+                            <span class="ctrl-desc">关闭可消除 5~30ms 随机休眠抖动</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chk-wifi-ps" onchange="toggleWifiPS(this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🚀 局域网设备联动</div>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>一键网络唤醒 (Wake-on-LAN)</span>
+                            <span class="ctrl-desc">广播魔术包唤醒 cc:28:aa:4f:bd:26</span>
+                        </div>
+                        <button class="btn btn-primary" onclick="triggerWoL()">⚡ 一键唤醒 PC</button>
+                    </div>
+                    <div class="ctrl-row">
+                        <div class="ctrl-label">
+                            <span>DNS 缓存一键刷新</span>
+                            <span class="ctrl-desc">重置 Android 机会主义 DNS 状态</span>
+                        </div>
+                        <button class="btn" onclick="flushDNS()">🧹 刷新 DNS</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Tab 8: Screen Mirror & Control ==================== -->
+        <div id="tab-screen" class="tab-content">
+            <div class="screen-layout">
+                <div class="phone-container">
+                    <div class="phone-mockup">
+                        <div class="phone-notch"></div>
+                        <div class="phone-display" id="phone-display">
+                            <canvas id="screen-canvas" width="400" height="888"></canvas>
+                            <div class="phone-status-overlay" id="screen-status-overlay">
+                                <span class="pulse-dot"></span>
+                                <span id="screen-fps-text">3.0 FPS</span>
+                            </div>
+                            <div id="touch-layer" style="position: absolute; inset: 0; pointer-events: none;"></div>
+                        </div>
+                        <div class="phone-nav-bar">
+                            <button class="phone-nav-btn" onclick="sendPhoneKey(4)" title="返回">◀</button>
+                            <button class="phone-nav-btn" onclick="sendPhoneKey(3)" title="主页">⭕</button>
+                            <button class="phone-nav-btn" onclick="sendPhoneKey(187)" title="任务">▢</button>
+                        </div>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); display: flex; gap: 10px;">
+                        <span>📐 1080×2400 AMOLED</span>
+                        <span>🖱️ 鼠标点击 / 拖拽即时映射</span>
+                    </div>
+                </div>
+
+                <div style="flex: 1; min-width: 320px; max-width: 550px; display: flex; flex-direction: column; gap: 14px;">
+                    <!-- 1fps 物理限制与 60fps 满血方案提示 -->
+                    <div class="card" style="border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.08); padding: 12px 14px;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--accent-amber); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            ⚠️ 网页投屏 1~3 FPS 原理与满血 60 FPS 极速串流指引
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+                            当前网页投屏采用 <b>Android 原生 screencap 截图转码</b>，免客户端即可在任何网页应急点按。但因手机 CPU 单帧截取（1080×2400）需耗时 600ms，物理帧率上限约 <b>1~3 FPS</b>。<br>
+                            🎮 <b>若要 60 FPS 满血零延迟（玩游戏、刷视频、快速操作）：</b><br>
+                            本机已全天候开启网络 ADB（端口 5555），电脑直接打开已安装的 <b>Escrcpy</b> 或在 PowerShell 运行下方命令：
+                            <div style="margin-top: 6px; background: rgba(0,0,0,0.6); padding: 8px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-green); display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);">
+                                <span>scrcpy -s 本机IP:5555 --max-fps=60 -b 16M</span>
+                                <button class="btn btn-sm btn-primary" onclick="copyToClipboard('scrcpy -s 本机IP:5555 --max-fps=60 -b 16M')">📋 复制</button>
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 11px;">（走高通硬件 H.264 编码 + 电脑显卡 GPU 解码，延迟 &lt; 15ms，真正拉满 60 帧！）</span>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">🎮 投屏控制台 (Web 轻量监控)</div>
+                            <span class="badge-online" id="badge-stream-state">待命</span>
+                        </div>
+                        <div class="ctrl-row">
+                            <div class="ctrl-label">
+                                <span>轻量画面监控</span>
+                                <span class="ctrl-desc">免客户端直接在网页点按手机</span>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn btn-primary" id="btn-toggle-stream" onclick="toggleScreenStream()">▶ 开启实时投屏</button>
+                                <button class="btn" onclick="fetchScreenFrame()">🔄 截一帧</button>
+                            </div>
+                        </div>
+                        <div class="ctrl-row">
+                            <div class="ctrl-label">
+                                <span>快捷电源按键</span>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn" onclick="wakePhoneScreen()">💡 点亮/锁屏</button>
+                                <button class="btn btn-primary" onclick="unlockPhoneScreen()">🔓 上滑解锁</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="border: 1px solid rgba(6, 182, 212, 0.35); background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(139, 92, 246, 0.05));">
+                        <div class="card-header">
+                            <div class="card-title" style="color: var(--accent-cyan);">🚀 满血 60 FPS 原生 Scrcpy / Escrcpy 直通</div>
+                            <span class="badge-online">免配直达已就绪</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+                            <div>连上热点后，打开电脑 <b>Escrcpy</b> 客户端或在 PowerShell 执行：</div>
+                            <div style="margin-top: 6px; background: rgba(0,0,0,0.6); padding: 8px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-green); border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
+                                <span>scrcpy -s 本机IP:5555 --max-fps=60 -b 16M</span>
+                                <button class="btn btn-sm btn-primary" onclick="copyToClipboard('scrcpy -s 本机IP:5555 --max-fps=60 -b 16M')">📋 复制</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">⌨️ 远程键盘文本输入</div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" id="phone-input-text" placeholder="输入文字回车发送至手机..." style="flex: 1;" onkeydown="if(event.key==='Enter') sendPhoneText()">
+                            <button class="btn btn-primary" onclick="sendPhoneText()">发送</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== Tab 9: System Logs ==================== -->
+        <div id="tab-logs" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📜 系统日志大屏 (System Log Stream)</div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <select id="sel-log-type" onchange="fetchSystemLogs()">
+                            <option value="dmesg">内核日志 (dmesg)</option>
+                            <option value="logcat">安卓系统日志 (logcat)</option>
+                            <option value="webui">CyberGate WebUI 日志</option>
+                            <option value="webdav">WebDAV 网盘日志</option>
+                            <option value="keeper">网关底座看护日志 (keeper)</option>
+                            <option value="boxguard">透明代理守护日志 (box-guard)</option>
+                            <option value="mihomo">代理核心日志 (mihomo)</option>
+                        </select>
+                        <input type="text" id="log-filter" placeholder="搜索关键字..." style="width: 130px;" oninput="filterLogs()">
+                        <button class="btn btn-sm" onclick="fetchSystemLogs()">🔄 刷新</button>
+                    </div>
+                </div>
+                <div class="terminal-box" id="log-display">正在获取系统日志...</div>
+            </div>
+        </div>
+
+        <!-- ==================== Tab 10: Root Terminal ==================== -->
+        <div id="tab-terminal" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">💻 Root 交互式终端 (Web Root Shell)</div>
+                    <span class="badge-online">uid=0(root)</span>
+                </div>
+                <div style="margin-bottom: 10px; display: flex; gap: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 11px; color: var(--text-muted); align-self: center;">快捷指令：</span>
+                    <button class="btn btn-sm" onclick="runQuickCmd('dumpsys telephony.registry | grep -iE \'CellInfoNr|mNrArfcn|ssRsrp\' | head -n 25')">5G 射频</button>
+                    <button class="btn btn-sm" onclick="runQuickCmd('ip -br a')">网络接口</button>
+                    <button class="btn btn-sm" onclick="runQuickCmd('uptime; free -m; cat /proc/loadavg')">负载与内存</button>
+                    <button class="btn btn-sm" onclick="runQuickCmd('df -h /sdcard /data')">磁盘存储</button>
+                    <button class="btn btn-sm" onclick="runQuickCmd('ip neigh; cat /proc/net/arp')">已连设备</button>
+                    <button class="btn btn-sm" onclick="runQuickCmd('sync; echo 3 > /proc/sys/vm/drop_caches; echo Cache Cleared')">清理缓存</button>
+                </div>
+                <div class="terminal-box" id="term-output" style="height: 340px;">CyberGate Root Terminal Ready.\nType a command below and press Enter.</div>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <span style="color: var(--accent-cyan); font-family: var(--font-mono); line-height: 32px; font-weight: bold;">#</span>
+                    <input type="text" id="term-input" placeholder="输入 Linux / Android Root 命令 (按 Enter 执行)..." style="flex: 1; font-family: var(--font-mono);" onkeydown="if(event.key==='Enter') executeTerminalCmd()">
+                    <button class="btn btn-primary" onclick="executeTerminalCmd()">执行</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2026-10-15: 代理面板嵌入 Tab（iframe 承载 mihomo dashboard，经 /proxypanel 反代同源访问） -->
+        <div id="tab-proxypanel" class="tab-content">
+            <div style="height: calc(100vh - 190px); display: flex; flex-direction: column; border: 1px solid var(--border-color, #333); border-radius: 12px; overflow: hidden;">
+                <div style="padding: 8px 14px; background: rgba(0,0,0,0.35); display: flex; align-items: center; gap: 10px;">
+                    <span style="color: var(--accent-cyan); font-weight: bold; font-family: var(--font-mono);">🛡️ Mihomo 代理控制面板</span>
+                    <span style="color: #888; font-size: 12px; font-family: var(--font-mono);">后端: 127.0.0.1:9090 (同源反代) · 节点/分流/连接全功能</span>
+                </div>
+                <iframe id="proxypanel-frame" src="/proxypanel/ui/" style="flex: 1; width: 100%; border: 0; background: #0d1117;"></iframe>
+            </div>
+        </div>
+
+        <!-- CPE Footer & Quick Documentation -->
+        <footer class="cpe-footer">
+            <div class="footer-card">
+                <div class="footer-left">
+                    <div class="footer-brand">
+                        <span>⚡ CyberGate 5G 网关</span>
+                        <span class="footer-ver">v2.3 Full-Stack</span>
+                    </div>
+                    <div class="footer-desc">
+                        Android 蜂窝网关 · 7×24h 稳定千兆蜂窝网关系统
+                    </div>
+                </div>
+                <div class="footer-actions">
+                    <a href="/docs" target="_blank" class="footer-btn primary" title="在新标签页打开极客使用全书">
+                        <span>📖 极客使用文档与排障全书 (点击跳转) ↗</span>
+                    </a>
+                    <button type="button" class="footer-btn" onclick="openDocModal()" title="在当前网页内弹出快速查阅手册">
+                        <span>🔍 快速查阅弹窗</span>
+                    </button>
+                    <a href="http://192.168.1.1" target="_blank" class="footer-btn" title="访问上游路由器后台">
+                        <span>🌐 上游路由器 ↗</span>
+                    </a>
+                    <a href="http://&lt;网关&gt;:58080" target="_blank" class="footer-btn" title="访问手机内部存储全速 WebDAV 网盘">
+                        <span>💾 内部存储网盘 ↗</span>
+                    </a>
+                </div>
+            </div>
+            <div class="footer-bottom-info">
+                Android 手机 (root) · 物理有线以太网直通 · 网络 ADB (5555) 免开 Wi-Fi · 硬件旁路供电保护运行中
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Quick Documentation Modal -->
+    <div id="doc-modal" class="doc-modal-overlay" onclick="if(event.target===this) closeDocModal()">
+        <div class="doc-modal-content">
+            <div class="doc-modal-header">
+                <div class="doc-modal-title">
+                    <span>📖 CyberGate 使用指南与排障手册</span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <a href="/docs" target="_blank" class="footer-btn primary" style="padding: 4px 10px; font-size: 11px;">
+                        <span>⛶ 新标签页独立全屏打开 ↗</span>
+                    </a>
+                    <button type="button" class="doc-modal-close" onclick="closeDocModal()">✕</button>
+                </div>
+            </div>
+            <iframe id="doc-modal-frame" class="doc-modal-iframe" src="about:blank"></iframe>
+    <!-- Battery & Power Details Modal -->
+    <div id="modal-battery" class="doc-modal-overlay" onclick="if(event.target===this) closeBatteryModal()">
+        <div class="doc-modal-content" style="max-width: 580px; height: auto; max-height: 88vh; overflow-y: auto; padding: 22px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
+                <div style="font-size: 17px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+                    <span>🔋</span> 电池健康与智能旁路供电管理
+                </div>
+                <button type="button" class="btn btn-sm" onclick="closeBatteryModal()" style="background: rgba(255,255,255,0.1); border: none; font-size: 16px; padding: 4px 10px; cursor: pointer; color: #94a3b8; border-radius: 8px;">✕</button>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px;">
+                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;">
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">⚡ 实时电量 / 状态</div>
+                    <div id="modal-batt-cap" style="font-size: 26px; font-weight: 700; color: #38bdf8;">--%</div>
+                    <div id="modal-batt-status-text" style="font-size: 12px; color: #34d399; margin-top: 4px; font-weight: 600;">获取中...</div>
+                </div>
+                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;">
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">🌡️ 电池温度 / 安全状态</div>
+                    <div id="modal-batt-temp" style="font-size: 26px; font-weight: 700; color: #10b981;">-- °C</div>
+                    <div id="modal-batt-temp-sub" style="font-size: 12px; color: #94a3b8; margin-top: 4px;">温控正常 · 防鼓包保护中</div>
+                </div>
+                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;">
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">🔌 实时供电功率</div>
+                    <div id="modal-batt-power" style="font-size: 20px; font-weight: 700; color: #f59e0b;">-- W</div>
+                    <div id="modal-batt-current" style="font-size: 12px; color: #94a3b8; margin-top: 4px;">电流: -- mA</div>
+                </div>
+                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;">
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">⚡ 电池电压 / 健康度</div>
+                    <div id="modal-batt-volt" style="font-size: 20px; font-weight: 700; color: #a78bfa;">-- V</div>
+                    <div id="modal-batt-health" style="font-size: 12px; color: #94a3b8; margin-top: 4px;">健康状态: Good (优良)</div>
+                </div>
+            </div>
+
+            <div style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: 12px; padding: 14px; font-size: 12px; line-height: 1.6; color: #bae6fd; margin-bottom: 18px;">
+                💡 <b>7×24h 智能旁路供电防护说明</b>：<br>
+                系统处于以太网拓展坞或充电器供电时，自动启用<b>硬件级旁路直供 (Bypass Direct Power)</b>。电源直接供给高通骁龙 870 芯片与 5G 基带工作，停止对锂电池高倍率持续浮充，杜绝高温鼓包与电池寿命衰减。
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn btn-sm btn-primary" onclick="closeBatteryModal();" style="padding: 8px 20px; font-size: 13px;">好的，我知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"></div>
+
+    <script>
+        // State & Optimistic UI Toggle Locks (Prevents Toggle Bouncing)
+        const toggle_locks = {};
+
+        function lockToggle(key, durationMs = 3500) {
+            toggle_locks[key] = Date.now() + durationMs;
+        }
+
+        function isToggleLocked(key) {
+            return toggle_locks[key] && Date.now() < toggle_locks[key];
+        }
+
+        // Battery Modal Functions
+        function openBatteryModal() {
+            const m = document.getElementById('modal-battery');
+            if (!m) return;
+            const b = window.latestBatteryData || {};
+            const icon = b.status_icon || '🔋';
+            const text = b.status_text || b.status || '正常';
+            const cap = b.capacity !== undefined ? b.capacity : '--';
+            const temp = b.temp !== undefined ? b.temp : '--';
+            const pwr = b.power_w !== undefined ? b.power_w : '--';
+            const volt = b.voltage_v !== undefined ? b.voltage_v : '--';
+            const cur = b.current_ma !== undefined ? b.current_ma : '--';
+
+            document.getElementById('modal-batt-cap').innerText = `${cap}%`;
+            document.getElementById('modal-batt-status-text').innerText = `${icon} ${text}`;
+            document.getElementById('modal-batt-temp').innerText = `${temp} °C`;
+            document.getElementById('modal-batt-power').innerText = `${pwr} W`;
+            document.getElementById('modal-batt-current').innerText = `实时电流: ${cur} mA`;
+            document.getElementById('modal-batt-volt').innerText = `${volt} V (${Math.round(volt*1000)} mV)`;
+            const hEl = document.getElementById('modal-batt-health');
+            if (hEl) hEl.innerText = `健康状态: ${b.health || 'Good (优良)'} · ${b.health_pct || 87.5}% (满充: ${b.charge_full_mah || 3937} / 设计: ${b.design_mah || 4500} mAh)`;
+            
+            m.style.display = 'flex';
+        }
+
+        function closeBatteryModal() {
+            const m = document.getElementById('modal-battery');
+            if (m) m.style.display = 'none';
+        }
+
+        // Documentation Modal Functions
+        function openDocModal() {
+            const m = document.getElementById('doc-modal');
+            const f = document.getElementById('doc-modal-frame');
+            if (m && f) {
+                if (f.src === 'about:blank' || !f.src) {
+                    f.src = '/docs';
+                }
+                m.style.display = 'flex';
+            }
+        }
+
+        function closeDocModal() {
+            const m = document.getElementById('doc-modal');
+            if (m) m.style.display = 'none';
+        }
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active');
+                if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(`'${tabId}'`)) {
+                    b.classList.add('active');
+                }
+            });
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const target = document.getElementById('tab-' + tabId);
+            if (target) target.classList.add('active');
+
+            if (tabId === 'performance') {
+                fetchProcesses();
+                toggleProcAutoRefresh();
+            } else {
+                if (typeof stopProcAutoRefresh === 'function') stopProcAutoRefresh();
+            }
+            if (tabId === 'cellular') {
+                fetchCellularDeep();
+                fetchNearbyCells();
+            }
+            if (tabId === 'wifi-client') {
+                const chk = document.getElementById('chk-wifi-master');
+                if (chk && chk.checked) scanWifiList();
+            }
+            if (tabId === 'hotspot') fetchHotspotConfig();
+            if (tabId === 'clients') fetchClients();
+            if (tabId === 'logs') fetchSystemLogs();
+            if (tabId === 'screen') {
+                if (!screenStreaming) toggleScreenStream();
+                else fetchScreenFrame();
+            }
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 3000);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("已成功复制命令至剪贴板！");
+            }).catch(() => {
+                showToast("复制失败，请手动复制");
+            });
+        }
+
+        // ==========================================
+        // 📈 Real-Time Speed Waveform Chart (with X/Y Axes & Ticks)
+        // ==========================================
+        const canvas = document.getElementById('trafficChart');
+        const ctx = canvas ? canvas.getContext('2d') : null;
+        const maxPoints = 60; // 60 seconds (1 minute sliding window)
+        let rxHistory = new Array(maxPoints).fill(0);
+        let txHistory = new Array(maxPoints).fill(0);
+
+        // 📊 Traffic Accounting & History Reporting
+        let trafficHistoryData = null;
+        let currentHistoryTab = 'hourly'; // 'hourly' | 'daily' | 'monthly'
+        let histHoverIndex = -1;
+        const histCanvas = document.getElementById('historyChart');
+        const histCtx = histCanvas ? histCanvas.getContext('2d') : null;
+        const histTooltip = document.getElementById('hist-tooltip');
+
+        function resizeAllCanvases() {
+            const dpr = window.devicePixelRatio || 1;
+            if (canvas && canvas.parentElement) {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                if (ctx) {
+                    ctx.resetTransform();
+                    ctx.scale(dpr, dpr);
+                }
+            }
+            if (histCanvas && histCanvas.parentElement) {
+                const rect = histCanvas.parentElement.getBoundingClientRect();
+                histCanvas.width = rect.width * dpr;
+                histCanvas.height = rect.height * dpr;
+                if (histCtx) {
+                    histCtx.resetTransform();
+                    histCtx.scale(dpr, dpr);
+                }
+            }
+        }
+        window.addEventListener('resize', () => {
+            resizeAllCanvases();
+            drawChart();
+            drawHistoryChart();
+        });
+        resizeAllCanvases();
+
+        function drawChart() {
+            if (!ctx || !canvas || !canvas.parentElement) return;
+            const w = canvas.parentElement.clientWidth;
+            const h = canvas.parentElement.clientHeight;
+            if (w <= 0 || h <= 0) return;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Gutter margins
+            const padL = 52;  // Left margin for Y-axis speed labels
+            const padR = 14;
+            const padT = 16;  // Top margin
+            const padB = 24;  // Bottom margin for X-axis time marks
+            const plotW = Math.max(10, w - padL - padR);
+            const plotH = Math.max(10, h - padT - padB);
+
+            // Auto-scale peak bandwidth
+            const peak = Math.max(...rxHistory, ...txHistory, 1.0);
+            let maxVal;
+            if (peak <= 5) maxVal = 5;
+            else if (peak <= 10) maxVal = 10;
+            else if (peak <= 25) maxVal = 25;
+            else if (peak <= 50) maxVal = 50;
+            else if (peak <= 100) maxVal = 100;
+            else if (peak <= 250) maxVal = 250;
+            else if (peak <= 500) maxVal = 500;
+            else if (peak <= 1000) maxVal = 1000;
+            else maxVal = Math.ceil(peak * 1.2 / 50) * 50;
+
+            // Draw Y-Axis Grid & Labels (4 intervals: 0%, 25%, 50%, 75%, 100%)
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.font = '10px "JetBrains Mono", Consolas, monospace';
+
+            for (let i = 0; i <= 4; i++) {
+                const ratio = i / 4;
+                const val = maxVal * ratio;
+                const y = padT + plotH - ratio * plotH;
+
+                // Horizontal grid line
+                ctx.beginPath();
+                ctx.strokeStyle = i === 0 ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+                ctx.lineWidth = 1;
+                ctx.moveTo(padL, y);
+                ctx.lineTo(padL + plotW, y);
+                ctx.stroke();
+
+                // Y-axis label text
+                ctx.fillStyle = '#64748b';
+                let labelText = val >= 10 ? Math.round(val) + 'M' : val.toFixed(1) + 'M';
+                if (i === 4) labelText += ' bps';
+                ctx.fillText(labelText, padL - 8, y);
+            }
+
+            // Draw X-Axis Grid & Time Labels (-60s, -45s, -30s, -15s, 现在)
+            const timeTicks = [
+                { idx: 0, text: '-60s' },
+                { idx: 15, text: '-45s' },
+                { idx: 30, text: '-30s' },
+                { idx: 45, text: '-15s' },
+                { idx: 59, text: '现在' }
+            ];
+
+            ctx.textBaseline = 'top';
+            for (const t of timeTicks) {
+                const x = padL + (t.idx / (maxPoints - 1)) * plotW;
+                // Vertical grid line
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+                ctx.lineWidth = 1;
+                ctx.moveTo(x, padT);
+                ctx.lineTo(x, padT + plotH);
+                ctx.stroke();
+
+                // Text label
+                ctx.fillStyle = '#64748b';
+                ctx.textAlign = t.idx === 0 ? 'left' : (t.idx === 59 ? 'right' : 'center');
+                ctx.fillText(t.text, x, padT + plotH + 7);
+            }
+
+            // Draw Left Y-Axis Baseline
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.lineWidth = 1;
+            ctx.moveTo(padL, padT);
+            ctx.lineTo(padL, padT + plotH);
+            ctx.stroke();
+
+            // Function to render clipped line & gradient area
+            function drawSeries(data, strokeColor, gradTop, gradBottom) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(padL, padT - 2, plotW, plotH + 4);
+                ctx.clip();
+
+                const step = plotW / (maxPoints - 1);
+                ctx.beginPath();
+                ctx.moveTo(padL, padT + plotH - (data[0] / maxVal) * plotH);
+                for (let i = 1; i < data.length; i++) {
+                    const x = padL + i * step;
+                    const y = padT + plotH - (data[i] / maxVal) * plotH;
+                    ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Fill gradient area
+                ctx.lineTo(padL + plotW, padT + plotH);
+                ctx.lineTo(padL, padT + plotH);
+                ctx.closePath();
+
+                const grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+                grad.addColorStop(0, gradTop);
+                grad.addColorStop(1, gradBottom);
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            // Draw Downlink (Rx) & Uplink (Tx)
+            drawSeries(rxHistory, '#06b6d4', 'rgba(6, 182, 212, 0.25)', 'rgba(6, 182, 212, 0.01)');
+            drawSeries(txHistory, '#a855f7', 'rgba(168, 85, 247, 0.20)', 'rgba(168, 85, 247, 0.01)');
+
+            // Update live peak badge
+            const peakEl = document.getElementById('chart-peak-live');
+            if (peakEl) peakEl.innerText = `峰值: ${peak.toFixed(1)} Mbps`;
+        }
+
+        // ==========================================
+        // 📊 History Traffic Reporting Engine (HTML5 Canvas)
+        // ==========================================
+        function switchHistoryTab(tab) {
+            currentHistoryTab = tab;
+            document.querySelectorAll('.history-tab-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('btn-hist-' + tab);
+            if (btn) btn.classList.add('active');
+            histHoverIndex = -1;
+            if (histTooltip) histTooltip.style.display = 'none';
+            drawHistoryChart();
+        }
+
+        function drawHistoryChart() {
+            if (!histCtx || !histCanvas || !histCanvas.parentElement) return;
+            const w = histCanvas.parentElement.clientWidth;
+            const h = histCanvas.parentElement.clientHeight;
+            if (w <= 0 || h <= 0) return;
+
+            histCtx.clearRect(0, 0, w, h);
+
+            if (!trafficHistoryData) {
+                histCtx.fillStyle = '#64748b';
+                histCtx.font = '12px "JetBrains Mono", monospace';
+                histCtx.textAlign = 'center';
+                histCtx.textBaseline = 'middle';
+                histCtx.fillText('正在载入 365 天历史流量数据库...', w / 2, h / 2);
+                return;
+            }
+
+            let items = [];
+            let unit = 'MB';
+            let isMonthly = false;
+
+            if (currentHistoryTab === 'hourly') {
+                items = trafficHistoryData.hourly_today || [];
+                unit = 'MB';
+            } else if (currentHistoryTab === 'daily') {
+                items = trafficHistoryData.daily_30d || [];
+                unit = 'MB';
+            } else if (currentHistoryTab === 'monthly') {
+                items = trafficHistoryData.monthly_12m || [];
+                unit = 'GB';
+                isMonthly = true;
+            }
+
+            if (items.length === 0) {
+                histCtx.fillStyle = '#64748b';
+                histCtx.font = '12px "JetBrains Mono", monospace';
+                histCtx.textAlign = 'center';
+                histCtx.textBaseline = 'middle';
+                histCtx.fillText('暂无该周期的流量统计记录', w / 2, h / 2);
+                return;
+            }
+
+            const padL = 52;
+            const padR = 14;
+            const padT = 16;
+            const padB = 24;
+            const plotW = Math.max(10, w - padL - padR);
+            const plotH = Math.max(10, h - padT - padB);
+
+            // Calculate max usage
+            const peak = Math.max(...items.map(it => isMonthly ? (it.total_gb || 0) : (it.total_mb || 0)), 1.0);
+            let maxVal;
+            if (peak <= 5) maxVal = 5;
+            else if (peak <= 10) maxVal = 10;
+            else if (peak <= 25) maxVal = 25;
+            else if (peak <= 50) maxVal = 50;
+            else if (peak <= 100) maxVal = 100;
+            else if (peak <= 250) maxVal = 250;
+            else if (peak <= 500) maxVal = 500;
+            else if (peak <= 1000) maxVal = 1000;
+            else maxVal = Math.ceil(peak * 1.2 / 50) * 50;
+
+            // Draw Y-Axis Horizontal Grid Lines and Labels
+            histCtx.textAlign = 'right';
+            histCtx.textBaseline = 'middle';
+            histCtx.font = '10px "JetBrains Mono", monospace';
+
+            for (let i = 0; i <= 3; i++) {
+                const ratio = i / 3;
+                const val = maxVal * ratio;
+                const y = padT + plotH - ratio * plotH;
+
+                histCtx.beginPath();
+                histCtx.strokeStyle = i === 0 ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+                histCtx.lineWidth = 1;
+                histCtx.moveTo(padL, y);
+                histCtx.lineTo(padL + plotW, y);
+                histCtx.stroke();
+
+                histCtx.fillStyle = '#64748b';
+                let labelText = val >= 10 ? Math.round(val) : val.toFixed(1);
+                if (i === 3) labelText += ' ' + unit;
+                histCtx.fillText(labelText, padL - 8, y);
+            }
+
+            // Draw Stacked Bars (Downlink Cyan + Uplink Purple)
+            const slotW = plotW / items.length;
+            const barW = Math.max(3, Math.min(24, slotW * 0.65));
+
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                const rxVal = isMonthly ? (it.rx_gb || 0) : (it.rx_mb || 0);
+                const txVal = isMonthly ? (it.tx_gb || 0) : (it.tx_mb || 0);
+                const rxH = (rxVal / maxVal) * plotH;
+                const txH = (txVal / maxVal) * plotH;
+                const centerX = padL + (i + 0.5) * slotW;
+                const barX = centerX - barW / 2;
+
+                // Highlight hovered column
+                if (i === histHoverIndex) {
+                    histCtx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+                    histCtx.fillRect(centerX - slotW / 2, padT, slotW, plotH);
+                }
+
+                // Downlink bar (Cyan)
+                if (rxH > 0) {
+                    histCtx.fillStyle = '#06b6d4';
+                    histCtx.fillRect(barX, padT + plotH - rxH, barW, rxH);
+                }
+
+                // Uplink bar (Purple stacked on top)
+                if (txH > 0) {
+                    histCtx.fillStyle = '#a855f7';
+                    histCtx.fillRect(barX, padT + plotH - rxH - txH, barW, txH);
+                }
+
+                // X-Axis Text Labels
+                histCtx.fillStyle = (i === histHoverIndex) ? '#22d3ee' : '#64748b';
+                histCtx.textAlign = 'center';
+                histCtx.textBaseline = 'top';
+
+                let showLabel = false;
+                if (currentHistoryTab === 'hourly') {
+                    if (i % 4 === 0 || i === items.length - 1) showLabel = true;
+                } else if (currentHistoryTab === 'daily') {
+                    if (i % 5 === 0 || i === items.length - 1) showLabel = true;
+                } else if (currentHistoryTab === 'monthly') {
+                    if (plotW > 500 || i % 2 === 0 || i === items.length - 1) showLabel = true;
+                }
+
+                if (showLabel) {
+                    histCtx.fillText(it.label, centerX, padT + plotH + 7);
+                }
+            }
+
+            // Draw Y-Axis baseline
+            histCtx.beginPath();
+            histCtx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+            histCtx.lineWidth = 1;
+            histCtx.moveTo(padL, padT);
+            histCtx.lineTo(padL, padT + plotH);
+            histCtx.lineTo(padL + plotW, padT + plotH);
+            histCtx.stroke();
+        }
+
+        // Interactive Tooltip Events on History Canvas
+        if (histCanvas) {
+            histCanvas.addEventListener('mousemove', (e) => {
+                if (!trafficHistoryData) return;
+                const rect = histCanvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const padL = 52;
+                const padR = 14;
+                const plotW = Math.max(10, rect.width - padL - padR);
+
+                let items = [];
+                let isMonthly = false;
+                if (currentHistoryTab === 'hourly') items = trafficHistoryData.hourly_today || [];
+                else if (currentHistoryTab === 'daily') items = trafficHistoryData.daily_30d || [];
+                else if (currentHistoryTab === 'monthly') { items = trafficHistoryData.monthly_12m || []; isMonthly = true; }
+
+                if (items.length === 0) return;
+
+                const slotW = plotW / items.length;
+                const idx = Math.floor((mouseX - padL) / slotW);
+
+                if (idx >= 0 && idx < items.length) {
+                    histHoverIndex = idx;
+                    const it = items[idx];
+                    drawHistoryChart();
+
+                    const rxStr = isMonthly ? `${it.rx_gb} GB` : `${it.rx_mb} MB`;
+                    const txStr = isMonthly ? `${it.tx_gb} GB` : `${it.tx_mb} MB`;
+                    const totStr = isMonthly ? `${it.total_gb} GB` : `${it.total_mb} MB`;
+                    const title = it.full_date ? `${it.full_date}` : `${it.label}`;
+
+                    histTooltip.innerHTML = `
+                        <div style="font-weight:700;color:#f8fafc;margin-bottom:3px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:2px;">📅 ${title}</div>
+                        <div style="color:#22d3ee;display:flex;justify-content:space-between;gap:12px;"><span>↓ 下行:</span><span>${rxStr}</span></div>
+                        <div style="color:#c084fc;display:flex;justify-content:space-between;gap:12px;"><span>↑ 上行:</span><span>${txStr}</span></div>
+                        <div style="color:#f1f5f9;font-weight:600;display:flex;justify-content:space-between;gap:12px;margin-top:2px;border-top:1px dashed rgba(255,255,255,0.15);padding-top:2px;"><span>∑ 总计:</span><span>${totStr}</span></div>
+                    `;
+
+                    let tipX = mouseX + 12;
+                    let tipY = mouseY - 40;
+                    if (tipX + 150 > rect.width) tipX = mouseX - 155;
+                    if (tipY < 10) tipY = 10;
+
+                    histTooltip.style.left = `${tipX}px`;
+                    histTooltip.style.top = `${tipY}px`;
+                    histTooltip.style.display = 'block';
+                } else {
+                    histHoverIndex = -1;
+                    histTooltip.style.display = 'none';
+                    drawHistoryChart();
+                }
+            });
+
+            histCanvas.addEventListener('mouseleave', () => {
+                histHoverIndex = -1;
+                if (histTooltip) histTooltip.style.display = 'none';
+                drawHistoryChart();
+            });
+        }
+
+        async function pollTrafficHistory() {
+            try {
+                const res = await fetch('/api/traffic/history');
+                const data = await res.json();
+                trafficHistoryData = data;
+
+                if (data.today) {
+                    const elTot = document.getElementById('stat-today-total');
+                    if (elTot) elTot.innerText = data.today.total_human || '0.0 MB';
+                    const elSub = document.getElementById('stat-today-sub');
+                    if (elSub) elSub.innerText = `↓ ${data.today.rx_human || '0 B'} · ↑ ${data.today.tx_human || '0 B'}`;
+                }
+                if (data.this_week) {
+                    const elTot = document.getElementById('stat-week-total');
+                    if (elTot) elTot.innerText = data.this_week.total_human || '0.0 MB';
+                    const elSub = document.getElementById('stat-week-sub');
+                    const yText = data.yesterday ? data.yesterday.total_human : '0.0 MB';
+                    if (elSub) elSub.innerText = `昨日用量: ${yText}`;
+                }
+                if (data.this_month) {
+                    const elTot = document.getElementById('stat-month-total');
+                    if (elTot) elTot.innerText = data.this_month.total_human || '0.0 MB';
+                    const elSub = document.getElementById('stat-month-sub');
+                    const lmText = data.last_month ? data.last_month.total_human : '0.0 MB';
+                    if (elSub) elSub.innerText = `上月同期: ${lmText}`;
+                }
+                if (data.year_total) {
+                    const elTot = document.getElementById('stat-year-total');
+                    if (elTot) elTot.innerText = data.year_total.total_human || '0.0 GB';
+                }
+
+                drawHistoryChart();
+            } catch (e) {
+                console.error("pollTrafficHistory error", e);
+            }
+        }
+
+        // Polling Data
+        let totalRxMB = 0, totalTxMB = 0;
+
+        async function pollStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+
+                // Uptime
+                if (data.uptime) document.getElementById('val-uptime').innerText = data.uptime;
+
+                // Battery & Temp & Power Management
+                if (data.battery) {
+                    const b = data.battery;
+                    window.latestBatteryData = b;
+                    const mBatt = document.getElementById('modal-battery');
+                    if (mBatt && mBatt.style.display === 'flex') {
+                        openBatteryModal();
+                    }
+                    const icon = b.status_icon || '🔋';
+                    const text = b.status_text || b.status || '正常';
+                    const cap = b.capacity !== undefined ? b.capacity : 0;
+                    const temp = b.temp || 0;
+                    const pwr = b.power_w || 0;
+                    const volt = b.voltage_v || 0;
+                    const cur = b.current_ma || 0;
+
+                    // KPI Card Elements
+                    const kpiMain = document.getElementById('kpi-batt-main');
+                    if (kpiMain) {
+                        kpiMain.innerHTML = `${cap}% <span style="font-size: 13px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8;">${icon} ${text}</span>`;
+                    }
+                    const kpiSub = document.getElementById('kpi-batt-sub');
+                    if (kpiSub) {
+                        kpiSub.innerText = `温度: ${temp}°C | 功率: ${pwr} W (${volt}V)`;
+                    }
+
+                    // Detailed Card Elements in Overview
+                    const ovBadge = document.getElementById('ov-batt-badge');
+                    if (ovBadge) {
+                        ovBadge.innerText = `${icon} ${b.status_desc || text}`;
+                        if (b.status_badge === 'bypass') {
+                            ovBadge.className = 'badge-bypass';
+                        } else if (b.status_badge === 'charging') {
+                            ovBadge.className = 'badge-online';
+                        } else if (b.status_badge === 'full') {
+                            ovBadge.className = 'badge-online';
+                        } else {
+                            ovBadge.className = 'badge-warn';
+                        }
+                    }
+                    const ovCapText = document.getElementById('ov-batt-cap-text');
+                    if (ovCapText) ovCapText.innerText = `${cap}% · ${b.status_text || text}`;
+
+                    const ovUsb = document.getElementById('ov-batt-usb');
+                    if (ovUsb) ovUsb.innerText = b.usb_type ? `${b.usb_type} (拓展坞供电)` : 'USB-PD 拓展坞';
+
+                    const ovPwr = document.getElementById('ov-batt-pwr');
+                    if (ovPwr) ovPwr.innerText = `${pwr} W (实时 ${volt} V / ${cur} mA)`;
+
+                    const ovHealth = document.getElementById('ov-batt-health');
+                    if (ovHealth) ovHealth.innerText = `${b.health_pct || 87.5}% (满充: ${b.charge_full_mah || 3937} / 设计: ${b.design_mah || 4500} mAh)`;
+
+                    const ovCycles = document.getElementById('ov-batt-cycles');
+                    if (ovCycles) ovCycles.innerText = `${b.cycle_count || 0} 次`;
+
+                    const ovTemp = document.getElementById('ov-batt-temp');
+                    if (ovTemp) ovTemp.innerText = `电芯: ${temp}°C | 充电芯片: ${b.charger_temp || temp}°C`;
+                }
+
+                // CPU & RAM
+                if (data.loadavg) document.getElementById('kpi-cpu').innerText = data.loadavg;
+                if (data.memory) {
+                    const ramP = data.memory.ram_percent || 0;
+                    document.getElementById('kpi-ram').innerText = `RAM: ${ramP}% | ZRAM 8G`;
+                }
+
+                // Storage
+                if (data.storage) {
+                    document.getElementById('kpi-storage').innerText = `${data.storage.free_gb} GB 可用`;
+                    document.getElementById('kpi-storage-sub').innerText = `已用: ${data.storage.percent}% (/sdcard)`;
+                    const dText = document.getElementById('dav-storage-text');
+                    if (dText) dText.innerText = `${data.storage.free_gb} GB 可用 / ${data.storage.total_gb} GB`;
+                    const dBar = document.getElementById('dav-storage-bar');
+                    if (dBar) dBar.style.width = `${data.storage.percent}%`;
+                }
+
+                // Interfaces
+                if (data.interfaces) {
+                    const ethIp = data.interfaces.eth0 || '未分配';
+                    const rmnetIp = data.interfaces.rmnet_data2 || data.interfaces.rmnet_data1 || data.interfaces.rmnet_data3 || data.interfaces.rmnet_data0 || '未连接';
+                    const wlanIp = data.interfaces.wlan1 || data.interfaces.wlan0 || '192.168.43.1';
+
+                    document.getElementById('ov-eth-ip').innerText = ethIp;
+                    document.getElementById('ov-cell-ip').innerText = rmnetIp;
+                    document.getElementById('ov-ap-ip').innerText = wlanIp;
+                }
+
+                // Toggles Sync (with optimistic lock check!)
+                if (data.toggles) {
+                    const t = data.toggles;
+                    if (!isToggleLocked('watchdog') && document.getElementById('chk-watchdog')) {
+                        document.getElementById('chk-watchdog').checked = !!t.watchdog;
+                    }
+                    if (!isToggleLocked('eth_tether') && document.getElementById('chk-eth-tether')) {
+                        document.getElementById('chk-eth-tether').checked = !!t.eth_tethered;
+                    }
+                    if (!isToggleLocked('qos_500b') && document.getElementById('chk-qos-500b')) {
+                        document.getElementById('chk-qos-500b').checked = !!t.qos_500b;
+                    }
+                    if (!isToggleLocked('qos_cs2') && document.getElementById('chk-qos-cs2')) {
+                        document.getElementById('chk-qos-cs2').checked = !!t.qos_cs2;
+                    }
+                    if (!isToggleLocked('wifi_master') && document.getElementById('chk-wifi-master')) {
+                        document.getElementById('chk-wifi-master').checked = !!t.wifi_master;
+                    }
+                    if (!isToggleLocked('wifi_ps') && document.getElementById('chk-wifi-ps')) {
+                        document.getElementById('chk-wifi-ps').checked = !!t.wifi_power_save;
+                    }
+                    if (!isToggleLocked('anti_cdrx') && document.getElementById('chk-cel-anti-cdrx')) {
+                        document.getElementById('chk-cel-anti-cdrx').checked = !!t.anti_cdrx;
+                    }
+                    if (!isToggleLocked('hotspot') && document.getElementById('chk-hotspot-active')) {
+                        document.getElementById('chk-hotspot-active').checked = !!t.hotspot_active;
+                    }
+                }
+            } catch (e) {
+                console.error("pollStatus error", e);
+            }
+        }
+
+        async function pollTraffic() {
+            try {
+                const res = await fetch('/api/traffic');
+                const data = await res.json();
+                let rxMbps = 0, txMbps = 0;
+
+                // Aggregate cellular WAN (rmnet_data*) speeds without double-counting
+                for (const [dev, s] of Object.entries(data)) {
+                    if (dev.startsWith('rmnet_data') || (dev.startsWith('rmnet') && !dev.includes('mhi') && !dev.includes('ipa'))) {
+                        rxMbps += s.rx_speed_mbps || 0;
+                        txMbps += s.tx_speed_mbps || 0;
+                        totalRxMB = Math.max(totalRxMB, s.rx_total_mb || 0);
+                        totalTxMB = Math.max(totalTxMB, s.tx_total_mb || 0);
+                    }
+                }
+                // Fallback to ethernet if mobile baseband counters are bridged
+                if (rxMbps === 0 && txMbps === 0 && data['eth0']) {
+                    rxMbps = data['eth0'].tx_speed_mbps || 0;
+                    txMbps = data['eth0'].rx_speed_mbps || 0;
+                }
+
+                rxMbps = Number(rxMbps.toFixed(2));
+                txMbps = Number(txMbps.toFixed(2));
+
+                document.getElementById('kpi-rx').innerHTML = `${rxMbps} <span style="font-size: 12px;">Mbps</span>`;
+                document.getElementById('kpi-tx').innerHTML = `${txMbps} <span style="font-size: 12px;">Mbps</span>`;
+                document.getElementById('kpi-rx-total').innerText = `累计: ${totalRxMB} MB`;
+                document.getElementById('kpi-tx-total').innerText = `累计: ${totalTxMB} MB`;
+
+                document.getElementById('chart-rx-live').innerText = `■ 下行: ${rxMbps} Mbps`;
+                document.getElementById('chart-tx-live').innerText = `■ 上行: ${txMbps} Mbps`;
+
+                rxHistory.push(rxMbps);
+                rxHistory.shift();
+                txHistory.push(txMbps);
+                txHistory.shift();
+
+                drawChart();
+            } catch (e) {
+                console.error("pollTraffic error", e);
+            }
+        }
+
+        // Cellular 5G Deep Query
+        async function fetchCellularDeep() {
+            try {
+                const res = await fetch('/api/cellular/deep');
+                const d = await res.json();
+
+                if (d.sim_present === false) {
+                    document.getElementById('cel-op').innerText = '未插卡 (SIM Absent)';
+                    document.getElementById('cel-plmn').innerText = '--';
+                    document.getElementById('cel-band').innerText = '基带脱网待机';
+                    document.getElementById('cel-arfcn').innerText = '--';
+                    document.getElementById('cel-pci').innerText = '--';
+                    document.getElementById('cel-tac').innerText = '--';
+                    document.getElementById('cel-nci').innerText = '--';
+                    document.getElementById('cel-rsrp').innerText = '-- dBm';
+                    document.getElementById('cel-sinr').innerText = '-- dB';
+                    document.getElementById('cel-rsrq').innerText = '-- dB';
+                    document.getElementById('cel-level').innerText = '0 / 4 (脱网待机)';
+
+                    document.getElementById('kpi-sinr').innerHTML = `-- <span style="font-size: 12px;">dB SINR</span>`;
+                    document.getElementById('kpi-rsrp').innerText = `RSRP: -- (未插卡)`;
+                    document.getElementById('ov-cell-op').innerText = `未插卡 (脱网待机)`;
+                    return;
+                }
+
+                document.getElementById('cel-op').innerText = d.operator || '--';
+                document.getElementById('cel-plmn').innerText = d.mcc_mnc || '--';
+                document.getElementById('cel-band').innerText = d.band || '--';
+                document.getElementById('cel-arfcn').innerText = d.arfcn !== undefined ? d.arfcn : '--';
+                document.getElementById('cel-pci').innerText = d.pci !== undefined ? d.pci : '--';
+                document.getElementById('cel-tac').innerText = d.tac !== undefined ? d.tac : '--';
+                document.getElementById('cel-nci').innerText = d.nci !== undefined ? d.nci : '--';
+                document.getElementById('cel-rsrp').innerText = typeof d.rsrp === 'number' ? `${d.rsrp} dBm` : (d.rsrp || '--');
+                document.getElementById('cel-sinr').innerText = typeof d.sinr === 'number' ? `${d.sinr} dB` : (d.sinr || '--');
+                document.getElementById('cel-rsrq').innerText = typeof d.rsrq === 'number' ? `${d.rsrq} dB` : (d.rsrq || '--');
+                document.getElementById('cel-level').innerText = `${d.level || 0} / 4`;
+
+                document.getElementById('kpi-sinr').innerHTML = `${d.sinr !== undefined ? d.sinr : '--'} <span style="font-size: 12px;">dB SINR</span>`;
+                document.getElementById('kpi-rsrp').innerText = `RSRP: ${d.rsrp !== undefined ? d.rsrp : '--'} dBm (${d.band || '--'})`;
+                document.getElementById('ov-cell-op').innerText = `${d.operator || '蜂窝网络'} (${d.band || '--'})`;
+            } catch (e) {
+                console.error("fetchCellularDeep error", e);
+            }
+        }
+
+        // 周边基站雷达扫描
+        async function fetchNearbyCells(trigger = 0) {
+            const tbody = document.getElementById('cells-list-body');
+            const mode = document.getElementById('sel-cell-scan-mode') ? document.getElementById('sel-cell-scan-mode').value : 'all';
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--accent-cyan); padding: 16px;">🔍 正在雷达扫描周边基站小区 (制式: ${mode})...</td></tr>`;
+            try {
+                const res = await fetch(`/api/cellular/cells?mode=${mode}&trigger=${trigger}`);
+                const data = await res.json();
+
+                // 兼容数组格式与标准对象格式
+                const isObj = data && typeof data === 'object' && !Array.isArray(data);
+                const simPresent = isObj ? (data.sim_present !== false) : true;
+                const list = isObj ? (data.cells || []) : (Array.isArray(data) ? data : []);
+
+                if (!simPresent) {
+                    tbody.innerHTML = `<tr>
+                        <td colspan="9" style="text-align: center; padding: 24px 16px;">
+                            <div style="display: inline-block; max-width: 650px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 16px 20px; text-align: left;">
+                                <div style="font-weight: bold; color: #f59e0b; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                                    <span>📇 当前未检测到有效 SIM 流量卡 (SIM Absent)</span>
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+                                    ${data.message || '依据 3GPP 蜂窝通信协议与高通骁龙 870 基带规范，未插入 SIM 流量卡时基带处于脱网休眠模式（仅保留紧急呼叫信道），不会上报物理小区测量数据。'}<br>
+                                    👉 <b>插入 5G/4G 流量卡后</b>，基带将自动建立物理层频点同步，此处将实时呈现主小区及周边全部测量邻区雷达列表。
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
+                    return;
+                }
+
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 20px;">未扫描到邻区基站（当前服务基站暂未下发邻区测量事件，或处于独立单基站覆盖区）。可尝试点击上方【触发基带重选搜网】。</td></tr>`;
+                    return;
+                }
+
+                let html = '';
+                list.forEach(c => {
+                    const isServing = c.registered;
+                    const ctypeTag = c.type === '5G NR' ? 
+                        `<span class="badge-online" style="font-weight: 700;">🚀 5G NR</span>` : 
+                        `<span class="pill-tag" style="color: var(--accent-purple); font-weight: 600;">📶 4G LTE</span>`;
+                    
+                    const bandTag = `<span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;">${c.band}</span>`;
+                    const statusTag = isServing ? 
+                        `<span class="badge-online">🟢 已连接主小区 (Serving)</span>` : 
+                        `<span class="pill-tag">候选邻区 (Neighbor)</span>`;
+                    
+                    const lockBtn = isServing ? 
+                        `<span style="color: var(--text-muted); font-size: 11px;">当前使用中</span>` : 
+                        `<button class="btn btn-sm btn-primary" onclick="lockCellBand('${c.type}', '${c.band}', ${c.pci}, ${c.arfcn})">🔒 锁定制式</button>`;
+
+                    const rowBg = isServing ? 'background: rgba(6, 182, 212, 0.08);' : '';
+
+                    html += `<tr style="${rowBg}">
+                        <td>${ctypeTag} <span style="font-size: 11px; color: var(--text-secondary); margin-left: 4px;">${c.operator}</span></td>
+                        <td>${bandTag}</td>
+                        <td style="font-weight: 700; color: #fff;">PCI ${c.pci}</td>
+                        <td style="color: var(--accent-cyan);">${c.arfcn}</td>
+                        <td>${c.tac}</td>
+                        <td>${c.nci}</td>
+                        <td><span style="color: var(--accent-green); font-weight: bold;">${c.rsrp}</span> / ${c.sinr}</td>
+                        <td>${statusTag}</td>
+                        <td>${lockBtn}</td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
+                showToast(`周边基站雷达扫描完毕，共发现 ${list.length} 个基站小区！`);
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--accent-red); padding: 16px;">扫描基站失败: ${e.message}</td></tr>`;
+            }
+        }
+
+        function lockCellBand(ctype, band, pci, arfcn) {
+            const targetMode = ctype === '5G NR' ? 'sa_only' : 'lte_only';
+            const modeDesc = ctype === '5G NR' ? '5G SA 纯独立组网' : '4G LTE 模式';
+            if (confirm(`确定要将网络接入模式锁定为【${modeDesc}】吗？\n目标小区: ${ctype} ${band} (PCI: ${pci}, ARFCN: ${arfcn})`)) {
+                changeNetworkMode(targetMode);
+                if (document.getElementById('sel-network-mode')) {
+                    document.getElementById('sel-network-mode').value = targetMode;
+                }
+                showToast(`基带偏好已锁定为: ${modeDesc}`);
+                setTimeout(() => { fetchCellularDeep(); fetchNearbyCells(); }, 2000);
+            }
+        }
+
+        function toggleWifiMaster(checked) {
+            lockToggle('wifi_master');
+            triggerAction('toggle_wifi_master', { enable: checked });
+            const stateEl = document.getElementById('val-wifi-state');
+            if (stateEl) stateEl.innerText = checked ? 'Wi-Fi 硬件已开启' : 'Wi-Fi 硬件已关闭';
+            if (checked) {
+                setTimeout(scanWifiList, 1500);
+            } else {
+                const tbody = document.getElementById('wifi-list-body');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Wi-Fi 模块已关闭，开启后可扫描周边网络。</td></tr>`;
+            }
+        }
+
+        // Wi-Fi Client Scanner
+        async function scanWifiList() {
+            const masterChk = document.getElementById('chk-wifi-master');
+            const tbody = document.getElementById('wifi-list-body');
+            if (masterChk && !masterChk.checked) {
+                if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">⚠️ Wi-Fi 无线网卡当前处于关闭状态。如需连接其他 Wi-Fi，请先开启上方主开关。</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--accent-cyan); padding: 16px;">🔍 正在通过 Wi-Fi 芯片扫描周边无线网络...</td></tr>`;
+            try {
+                const res = await fetch('/api/wifi/list');
+                const list = await res.json();
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">未扫描到周边 Wi-Fi，请确保 Wi-Fi 已开启后重试。</td></tr>`;
+                    return;
+                }
+                let html = '';
+                list.forEach(w => {
+                    const bandTag = w.is_5g ? `<span class="pill-tag" style="color: var(--accent-cyan);">5GHz</span>` : `<span class="pill-tag">2.4GHz</span>`;
+                    const secTag = w.security === 'Open' ? `<span class="badge-online">开放无密</span>` : `<span class="pill-tag">${w.security}</span>`;
+                    html += `<tr>
+                        <td style="font-weight: 600; color: #fff;">${w.ssid}</td>
+                        <td>${bandTag}</td>
+                        <td><span style="color: var(--accent-green); font-weight: bold;">${w.quality}%</span> (${w.rssi} dBm)</td>
+                        <td>${secTag}</td>
+                        <td><button class="btn btn-sm btn-primary" onclick="promptConnectWifi('${w.ssid}', '${w.security}')">连接</button></td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
+                document.getElementById('val-wifi-state').innerText = `已发现 ${list.length} 个周边网络`;
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--accent-red); padding: 16px;">扫描失败: ${e.message}</td></tr>`;
+            }
+        }
+
+        function promptConnectWifi(ssid, sec) {
+            let pwd = "";
+            if (sec !== 'Open') {
+                pwd = prompt(`请输入 Wi-Fi [${ssid}] 的无线密码:`, "");
+                if (pwd === null) return;
+            }
+            triggerAction('wifi_connect', { ssid: ssid, password: pwd, security: sec });
+            showToast(`正在连接 Wi-Fi: ${ssid}...`);
+        }
+
+        // Hotspot Config & Schedule
+        async function fetchHotspotConfig() {
+            try {
+                const res = await fetch('/api/hotspot/info');
+                const d = await res.json();
+                if (d.ssid) document.getElementById('hs-ssid').value = d.ssid;
+                if (d.passphrase) document.getElementById('hs-password').value = d.passphrase;
+                if (d.band) document.getElementById('hs-band').value = d.band;
+                document.getElementById('hs-ax').checked = !!d.ax_enabled;
+                document.getElementById('hs-auto-shutdown').checked = !!d.auto_shutdown;
+                document.getElementById('chk-hotspot-active').checked = !!d.active;
+
+                if (d.schedule) {
+                    document.getElementById('hs-sched-enabled').checked = !!d.schedule.enabled;
+                    document.getElementById('hs-sched-always-on').checked = !!d.schedule.always_on;
+                    document.getElementById('hs-sched-auto-heal').checked = !!d.schedule.auto_heal;
+                    if (d.schedule.start_time) document.getElementById('hs-sched-start').value = d.schedule.start_time;
+                    if (d.schedule.end_time) document.getElementById('hs-sched-end').value = d.schedule.end_time;
+                }
+            } catch (e) {
+                console.error("fetchHotspotConfig error", e);
+            }
+        }
+
+        async function saveHotspotConfig() {
+            const days = [];
+            document.querySelectorAll('.hs-day:checked').forEach(cb => days.push(parseInt(cb.value)));
+            const payload = {
+                ssid: document.getElementById('hs-ssid').value,
+                passphrase: document.getElementById('hs-password').value,
+                band: parseInt(document.getElementById('hs-band').value),
+                ax_enabled: document.getElementById('hs-ax').checked,
+                auto_shutdown: document.getElementById('hs-auto-shutdown').checked,
+                schedule: {
+                    enabled: document.getElementById('hs-sched-enabled').checked,
+                    always_on: document.getElementById('hs-sched-always-on').checked,
+                    auto_heal: document.getElementById('hs-sched-auto-heal').checked,
+                    start_time: document.getElementById('hs-sched-start').value,
+                    end_time: document.getElementById('hs-sched-end').value,
+                    days: days
+                }
+            };
+            try {
+                const res = await fetch('/api/hotspot/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const r = await res.json();
+                showToast(r.message || "热点配置与调度策略已成功保存！");
+            } catch (e) {
+                showToast("保存热点失败: " + e.message);
+            }
+        }
+
+        function saveHotspotScheduleOnly() {
+            saveHotspotConfig();
+        }
+
+        function applyDormSchedulePreset() {
+            document.getElementById('hs-sched-enabled').checked = true;
+            document.getElementById('hs-sched-always-on').checked = false;
+            document.getElementById('hs-sched-auto-heal').checked = true;
+            document.getElementById('hs-sched-start').value = "23:00";
+            document.getElementById('hs-sched-end').value = "07:00";
+
+            document.querySelectorAll('.hs-day').forEach(cb => {
+                const val = parseInt(cb.value);
+                if (val === 7 || (val >= 1 && val <= 4)) {
+                    cb.checked = true;
+                } else {
+                    cb.checked = false;
+                }
+            });
+            showToast("已套用断电作息：周日~周四 23:00~次日07:00开启，周五周六关闭！点击下方保存即可生效！");
+        }
+
+        // ==========================================
+        // ⚡ System Performance & Process Manager
+        // ==========================================
+        let allProcesses = [];
+        let procRefreshTimer = null;
+
+        async function fetchProcesses() {
+            try {
+                const res = await fetch('/api/system/processes');
+                const d = await res.json();
+
+                // CPU
+                if (d.cpu) {
+                    const cpuEl = document.getElementById('perf-cpu-usage');
+                    if (cpuEl) cpuEl.innerText = `${d.cpu.usage}%`;
+                    const loadEl = document.getElementById('perf-cpu-load');
+                    if (loadEl) loadEl.innerText = `Load: ${d.cpu.load_1 || '--'} / ${d.cpu.load_5 || '--'} / ${d.cpu.load_15 || '--'}`;
+                }
+
+                // GPU (Adreno 650)
+                if (d.gpu) {
+                    const gpuEl = document.getElementById('perf-gpu-usage');
+                    if (gpuEl) gpuEl.innerText = `${d.gpu.usage}%`;
+                    const freqEl = document.getElementById('perf-gpu-freq');
+                    if (freqEl) freqEl.innerText = `主频: ${d.gpu.freq_mhz || 0} MHz`;
+                }
+
+                // RAM (LPDDR5)
+                if (d.memory) {
+                    const m = d.memory;
+                    const usedPct = m.total_mb > 0 ? Math.round((m.used_mb / m.total_mb) * 100) : 0;
+                    const memEl = document.getElementById('perf-mem-usage');
+                    if (memEl) memEl.innerText = `${usedPct}%`;
+                    const memDet = document.getElementById('perf-mem-detail');
+                    if (memDet) memDet.innerText = `已用: ${m.used_mb} MB / 总计: ${m.total_mb} MB`;
+
+                    // Swap / ZRAM
+                    const swapPct = m.swap_total_mb > 0 ? Math.round((m.swap_used_mb / m.swap_total_mb) * 100) : 0;
+                    const swapEl = document.getElementById('perf-swap-usage');
+                    if (swapEl) swapEl.innerText = `${swapPct}%`;
+                    const swapDet = document.getElementById('perf-swap-detail');
+                    if (swapDet) swapDet.innerText = `已用: ${m.swap_used_mb} MB / 总计: ${m.swap_total_mb} MB`;
+                }
+
+                allProcesses = d.processes || [];
+                renderProcessTable();
+            } catch (e) {
+                console.error("fetchProcesses error", e);
+            }
+        }
+
+        function renderProcessTable() {
+            const tbody = document.getElementById('proc-tbody');
+            if (!tbody) return;
+            const searchInput = document.getElementById('proc-search');
+            const kw = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+            let list = allProcesses;
+            if (kw) {
+                list = allProcesses.filter(p => 
+                    (p.name && p.name.toLowerCase().includes(kw)) ||
+                    (p.raw_cmd && p.raw_cmd.toLowerCase().includes(kw)) ||
+                    (p.package && p.package.toLowerCase().includes(kw)) ||
+                    (String(p.pid).includes(kw)) ||
+                    (p.user && p.user.toLowerCase().includes(kw))
+                );
+            }
+
+            if (!list || list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">${kw ? '无匹配进程' : '暂无进程数据'}</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            list.forEach(p => {
+                const isHighCpu = p.cpu >= 15;
+                const cpuStyle = isHighCpu ? 'color: var(--accent-red); font-weight: 700;' : (p.cpu > 0 ? 'color: var(--accent-cyan);' : 'color: var(--text-muted);');
+                const killBtn = p.can_kill ? 
+                    `<button class="btn btn-sm btn-danger" onclick="killProcess(${p.pid}, '${p.package || ''}', '${(p.name || '').replace(/'/g, "\\'")}')">结束进程</button>` :
+                    `<span style="color: var(--text-muted); font-size: 11px;">系统核心</span>`;
+
+                html += `<tr>
+                    <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">${p.pid}</td>
+                    <td>
+                        <div style="font-weight: 600; color: #fff;">${p.name}</div>
+                        ${p.package ? `<div style="font-size: 11px; color: var(--accent-cyan); font-family: var(--font-mono);">${p.package}</div>` : (p.raw_cmd && p.raw_cmd !== p.name ? `<div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; max-width: 320px; white-space: nowrap;">${p.raw_cmd}</div>` : '')}
+                    </td>
+                    <td><span class="pill-tag" style="font-size: 11px;">${p.user}</span></td>
+                    <td style="font-family: var(--font-mono); ${cpuStyle}">${p.cpu}%</td>
+                    <td style="font-family: var(--font-mono); color: var(--accent-green); font-size: 12px;">${p.res}</td>
+                    <td><span class="badge ${p.status === '运行中' ? 'badge-online' : 'badge-warn'}" style="font-size: 10px;">${p.status}</span></td>
+                    <td style="text-align: right;">${killBtn}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        async function killProcess(pid, pkg, name) {
+            if (!confirm(`⚠️ 警告：确定要强制结束进程 [${name}] (PID: ${pid}) 吗？\n如果这是系统关键组件可能导致手机重启。`)) return;
+            try {
+                const res = await fetch('/api/system/process/kill', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ pid: pid, package: pkg })
+                });
+                const d = await res.json();
+                if (d.success) {
+                    showToast(`✅ 已成功结束进程 [${name}]`);
+                } else {
+                    showToast(`❌ 结束进程失败: ${d.message}`);
+                }
+                setTimeout(fetchProcesses, 600);
+            } catch (e) {
+                showToast(`❌ 请求出错: ${e.message}`);
+            }
+        }
+
+        function toggleProcAutoRefresh() {
+            stopProcAutoRefresh();
+            const chk = document.getElementById('proc-auto-refresh');
+            const isPerfActive = document.getElementById('tab-performance') && document.getElementById('tab-performance').classList.contains('active');
+            if (chk && chk.checked && isPerfActive) {
+                procRefreshTimer = setInterval(fetchProcesses, 3000);
+            }
+        }
+
+        function stopProcAutoRefresh() {
+            if (procRefreshTimer) {
+                clearInterval(procRefreshTimer);
+                procRefreshTimer = null;
+            }
+        }
+
+        // ==========================================
+        // 👥 Clients Table & Management (Hotspot + upstream router fusion)
+        // ==========================================
+        async function fetchClients() {
+            const tbody = document.getElementById('clients-body');
+            const statusMsg = document.getElementById('clients-router-msg');
+            const countBadge = document.getElementById('clients-count-badge');
+            try {
+                const res = await fetch('/api/clients');
+                const data = await res.json();
+                
+                const list = Array.isArray(data) ? data : (data.clients || []);
+                const routerOnline = data.router_online !== undefined ? data.router_online : false;
+                const routerMsg = data.router_message || (routerOnline ? '正常连接中' : '离线 (上游断电)');
+
+                if (statusMsg) {
+                    if (routerOnline) {
+                        statusMsg.innerHTML = `<span style="color: #4ade80; font-weight: 600;">🟢 OpenWrt 路由器在线</span> · <span style="color: var(--text-secondary);">${routerMsg}</span>`;
+                    } else {
+                        statusMsg.innerHTML = `<span style="color: #f59e0b; font-weight: 600;">⚠️ 路由器未连通 (上游断电中)</span> · <span style="color: var(--text-secondary);">${routerMsg}</span>`;
+                    }
+                }
+                if (countBadge) {
+                    countBadge.innerText = `${list.length} 台终端在线`;
+                }
+
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 24px;">当前没有下挂终端设备连接</td></tr>`;
+                    return;
+                }
+
+                let html = '';
+                list.forEach(c => {
+                    const isBlk = c.blocked;
+                    const statusTag = isBlk ? `<span class="badge-danger">⛔ 已拉黑</span>` : `<span class="badge-online">🟢 在线</span>`;
+                    const blockBtn = isBlk ? 
+                        `<button class="btn btn-sm btn-primary" onclick="toggleBlockClient('${c.mac}', false)">解封</button>` : 
+                        `<button class="btn btn-sm btn-danger" onclick="toggleBlockClient('${c.mac}', true)">拉黑</button>`;
+
+                    const isRouterClient = c.source && c.source.includes('路由器');
+                    const kickBtn = isRouterClient ? 
+                        `<button class="btn btn-sm" disabled title="路由器下挂设备请在路由器后台断连" style="opacity: 0.45; cursor: not-allowed;">断连</button>` :
+                        `<button class="btn btn-sm" onclick="kickClient('${c.ip}', '${c.mac}')">断连</button>`;
+
+                    html += `<tr>
+                        <td><span class="pill-tag">${c.source || c.interface}</span></td>
+                        <td>
+                            <div style="font-weight: 600; color: #fff;">${c.name || '未知设备'}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">${c.vendor || '--'}</div>
+                        </td>
+                        <td style="color: var(--accent-cyan); font-weight: 600; font-family: var(--font-mono);">${c.ip}</td>
+                        <td style="font-family: var(--font-mono); font-size: 12px;">${c.mac}</td>
+                        <td style="font-family: var(--font-mono); font-size: 12px;">
+                            <span style="color: #38bdf8;">↓ ${c.speed_rx || '0 B/s'}</span><br>
+                            <span style="color: #c084fc;">↑ ${c.speed_tx || '0 B/s'}</span>
+                        </td>
+                        <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">${c.total_traffic || '--'}</td>
+                        <td>${statusTag}</td>
+                        <td>
+                            <select onchange="limitClientSpeed('${c.ip}', this.value)" style="padding: 2px 6px; font-size: 11px; background: rgba(15,23,42,0.8); border: 1px solid var(--border-card); color: #fff; border-radius: 4px;">
+                                <option value="0">全速直通</option>
+                                <option value="2">2 Mbps</option>
+                                <option value="5">5 Mbps</option>
+                                <option value="10">10 Mbps</option>
+                                <option value="30">30 Mbps</option>
+                            </select>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 4px; justify-content: flex-end;">
+                                ${kickBtn}
+                                ${blockBtn}
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--accent-red); padding: 20px;">加载设备列表失败: ${e.message}</td></tr>`;
+            }
+        }
+
+        function kickClient(ip, mac) {
+            if (!confirm(`确定要单次踢掉设备 [${ip}] 吗？`)) return;
+            triggerAction('kick_client', { ip: ip, mac: mac });
+            showToast(`已断开设备 ${ip}`);
+            setTimeout(fetchClients, 1200);
+        }
+
+        function toggleBlockClient(mac, block) {
+            triggerAction('toggle_client_block', { mac: mac, block: block });
+            showToast(block ? `已永久拉黑 ${mac}` : `已解除拉黑 ${mac}`);
+            setTimeout(fetchClients, 1200);
+        }
+
+        function limitClientSpeed(ip, rateMbps) {
+            const rateKbps = parseInt(rateMbps) * 1024 / 8;
+            triggerAction('limit_client_speed', { ip: ip, rate_kbps: rateKbps });
+            showToast(rateMbps == 0 ? `设备 ${ip} 限速已解除` : `设备 ${ip} 已限速为 ${rateMbps} Mbps`);
+        }
+
+        function applyGlobalRateLimit(rateMbps) {
+            triggerAction('set_speed_limit', { interface: 'all', rate_mbps: parseInt(rateMbps) });
+            showToast(rateMbps == 0 ? "整机已恢复全速直通" : `整机出口已限速至 ${rateMbps} Mbps`);
+        }
+
+        // Toggle Actions
+        function toggleWatchdog(checked) {
+            lockToggle('watchdog');
+            triggerAction('toggle_watchdog', { enable: checked });
+        }
+
+        function toggleEthTether(checked) {
+            lockToggle('eth_tether');
+            triggerAction('toggle_eth_tether', { enable: checked });
+        }
+
+        function toggleAntiCDRX(checked) {
+            lockToggle('anti_cdrx');
+            triggerAction('toggle_anti_cdrx', { enable: checked });
+        }
+
+        function toggleWifiPS(checked) {
+            lockToggle('wifi_ps');
+            triggerAction('toggle_wifi_power_save', { enable: checked });
+        }
+
+        function toggleQoS500B(checked) {
+            lockToggle('qos_500b');
+            triggerAction('toggle_qos_500b', { enable: checked });
+        }
+
+        function toggleQoScs2(checked) {
+            lockToggle('qos_cs2');
+            triggerAction('toggle_qos_cs2', { enable: checked });
+        }
+
+        function toggleHotspot(checked) {
+            lockToggle('hotspot');
+            triggerAction('toggle_hotspot', { enable: checked });
+        }
+
+        function changeNetworkMode(mode) {
+            triggerAction('set_network_mode', { mode: mode });
+        }
+
+        function triggerWoL() {
+            triggerAction('wake_pc', { mac: 'cc:28:aa:4f:bd:26' });
+            showToast("⚡ 已广播魔术包唤醒局域网主机！");
+        }
+
+        function flushDNS() {
+            triggerAction('exec_cmd', { command: 'ndc resolver clearnetdns wlan0 ; ndc resolver clearnetdns eth0' });
+            showToast("🧹 DNS 缓存已清空");
+        }
+
+        async function triggerAction(action, params = {}) {
+            try {
+                const res = await fetch('/api/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action, params: params })
+                });
+                const r = await res.json();
+                if (r.message) showToast(r.message);
+                return r;
+            } catch (e) {
+                showToast("操作请求失败: " + e.message);
+            }
+        }
+
+        // Screen Mirroring
+        let screenStreaming = false;
+        let screenTimer = null;
+        const screenCanvas = document.getElementById('screen-canvas');
+        const sCtx = screenCanvas ? screenCanvas.getContext('2d') : null;
+
+        function toggleScreenStream() {
+            const btn = document.getElementById('btn-toggle-stream');
+            const badge = document.getElementById('badge-stream-state');
+            if (screenStreaming) {
+                screenStreaming = false;
+                clearTimeout(screenTimer);
+                if (btn) btn.innerText = "▶ 开启实时投屏";
+                if (badge) { badge.innerText = "已暂停"; badge.className = "pill-tag"; }
+            } else {
+                screenStreaming = true;
+                if (btn) btn.innerText = "⏹ 暂停实时投屏";
+                if (badge) { badge.innerText = "串流中"; badge.className = "badge-online"; }
+                streamLoop();
+            }
+        }
+
+        function fetchScreenFrame() {
+            if (!sCtx) return;
+            const img = new Image();
+            img.onload = () => {
+                screenCanvas.width = img.width;
+                screenCanvas.height = img.height;
+                sCtx.drawImage(img, 0, 0);
+            };
+            img.src = `/api/screen/frame?t=${Date.now()}&quality=50&width=360`;
+        }
+
+        function streamLoop() {
+            if (!screenStreaming) return;
+            const t0 = Date.now();
+            const img = new Image();
+            img.onload = () => {
+                if (sCtx) {
+                    screenCanvas.width = img.width;
+                    screenCanvas.height = img.height;
+                    sCtx.drawImage(img, 0, 0);
+                }
+                const rtt = Date.now() - t0;
+                const fps = Math.min(6, (1000 / Math.max(100, rtt))).toFixed(1);
+                const fpsText = document.getElementById('screen-fps-text');
+                if (fpsText) fpsText.innerText = `${fps} FPS`;
+                if (screenStreaming) screenTimer = setTimeout(streamLoop, 120);
+            };
+            img.onerror = () => {
+                if (screenStreaming) screenTimer = setTimeout(streamLoop, 800);
+            };
+            img.src = `/api/screen/frame?t=${Date.now()}&quality=45&width=340`;
+        }
+
+        // Screen Touch Mapping
+        const display = document.getElementById('phone-display');
+        let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+
+        if (display) {
+            display.addEventListener('mousedown', e => {
+                const rect = display.getBoundingClientRect();
+                touchStartX = (e.clientX - rect.left) / rect.width;
+                touchStartY = (e.clientY - rect.top) / rect.height;
+                touchStartTime = Date.now();
+            });
+
+            display.addEventListener('mouseup', e => {
+                const rect = display.getBoundingClientRect();
+                const endX = (e.clientX - rect.left) / rect.width;
+                const endY = (e.clientY - rect.top) / rect.height;
+                const dur = Date.now() - touchStartTime;
+                const dist = Math.hypot(endX - touchStartX, endY - touchStartY);
+
+                // Touch Ripple Animation
+                const r = document.createElement('div');
+                r.className = 'touch-ripple';
+                r.style.left = (e.clientX - rect.left) + 'px';
+                r.style.top = (e.clientY - rect.top) + 'px';
+                display.appendChild(r);
+                setTimeout(() => r.remove(), 400);
+
+                if (dist < 0.03) {
+                    fetch('/api/screen/control', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ action: 'tap', params: { x: touchStartX, y: touchStartY } })
+                    });
+                } else {
+                    fetch('/api/screen/control', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            action: 'swipe',
+                            params: { x1: touchStartX, y1: touchStartY, x2: endX, y2: endY, duration: Math.min(400, dur) }
+                        })
+                    });
+                }
+                setTimeout(fetchScreenFrame, 350);
+            });
+        }
+
+        function sendPhoneKey(code) {
+            fetch('/api/screen/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'key', params: { code: code } })
+            });
+            setTimeout(fetchScreenFrame, 300);
+        }
+
+        function wakePhoneScreen() {
+            fetch('/api/screen/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'key', params: { code: 26 } })
+            });
+            setTimeout(fetchScreenFrame, 300);
+        }
+
+        function unlockPhoneScreen() {
+            fetch('/api/screen/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'wake' })
+            });
+            setTimeout(fetchScreenFrame, 600);
+        }
+
+        function sendPhoneText() {
+            const input = document.getElementById('phone-input-text');
+            const txt = input.value;
+            if (!txt) return;
+            fetch('/api/screen/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'text', params: { text: txt } })
+            });
+            input.value = '';
+            setTimeout(fetchScreenFrame, 350);
+        }
+
+        // System Logs
+        let currentLogsRaw = "";
+        async function fetchSystemLogs() {
+            const logBox = document.getElementById('log-display');
+            const type = document.getElementById('sel-log-type').value;
+            logBox.innerText = `正在读取 [${type}] 实时日志...`;
+            try {
+                const res = await fetch(`/api/logs?type=${type}&lines=120`);
+                const d = await res.json();
+                currentLogsRaw = d.content || "日志输出为空。";
+                filterLogs();
+            } catch (e) {
+                logBox.innerText = "获取日志出错: " + e.message;
+            }
+        }
+
+        function filterLogs() {
+            const kw = document.getElementById('log-filter').value.trim().toLowerCase();
+            const logBox = document.getElementById('log-display');
+            if (!kw) {
+                logBox.innerText = currentLogsRaw;
+            } else {
+                const lines = currentLogsRaw.split('\n');
+                const filtered = lines.filter(l => l.toLowerCase().includes(kw));
+                logBox.innerText = filtered.length > 0 ? filtered.join('\n') : "无匹配日志记录。";
+            }
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // Terminal Shell
+        async function executeTerminalCmd() {
+            const input = document.getElementById('term-input');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            const termBox = document.getElementById('term-output');
+            termBox.innerText += `\n\n# ${cmd}\n`;
+            input.value = '';
+            termBox.scrollTop = termBox.scrollHeight;
+            try {
+                const res = await fetch('/api/terminal/exec', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ command: cmd })
+                });
+                const d = await res.json();
+                termBox.innerText += (d.output || "(无输出)");
+            } catch (e) {
+                termBox.innerText += `执行错误: ${e.message}`;
+            }
+            termBox.scrollTop = termBox.scrollHeight;
+        }
+
+        function runQuickCmd(cmd) {
+            document.getElementById('term-input').value = cmd;
+            executeTerminalCmd();
+        }
+
+        // Initialization
+        pollStatus();
+        pollTraffic();
+        pollTrafficHistory();
+        setInterval(pollTraffic, 1000);
+        setInterval(pollStatus, 3000);
+        setInterval(pollTrafficHistory, 15000);
+    </script>
+</body>
+</html>

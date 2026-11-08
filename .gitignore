@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 运行时产物（面板自动生成，不入库）
+*.db
+*.db-journal
+traffic_stats.db
+hotspot_schedule.json
+blocked_macs.json
+
+# 本地真实配置（含个人 IP/接口名，不上传；用 config.example.json 作模板）
+webui/config.json
+
+# 日志
+*.log
+
+# 编辑器/系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
