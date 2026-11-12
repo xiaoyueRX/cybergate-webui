@@ -43,7 +43,7 @@ iw dev                                 # Wi-Fi：type AP 的是热点口，type 
 ## 3. 端口与本地域名
 
 - `web_port`：面板端口。改它同时改 `start.sh` 里的 `WEB_PORT`。
-- `dns_port` + `start.sh` 的 53→DNS_PORT 重定向：实现 `k40s.com` 这类本地域名免配置解析。
+- `dns_port` + `start.sh` 的 53→DNS_PORT 重定向：实现 `gateway.lan` 这类本地域名免配置解析。
   不需要就删掉 start.sh 里那段 iptables，并把 `local_domain_keyword` 留空意义不大（无妨）。
 - `local_gateway_ip`：内置 DNS 应答的 A 记录，填你手机在局域网的网关 IP。
 - `controller_port`：如果你跑了 mihomo/clash，填它的 external-controller 端口（默认 9090）；

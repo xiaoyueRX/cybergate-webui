@@ -4,22 +4,68 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CyberGate · 手机蜂窝网关控制台</title>
+    <script>
+        (function() {
+            var m = localStorage.getItem('cybergate_theme_mode') || 'auto';
+            var h = new Date().getHours();
+            var t = (m === 'light' || m === 'dark') ? m : ((h >= 7 && h < 19) ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <style>
         :root {
             --bg-base: #080b11;
-            --bg-surface: #0f172a;
-            --bg-card: rgba(30, 41, 59, 0.75);
-            --border-card: rgba(255, 255, 255, 0.08);
-            --border-glow: rgba(6, 182, 212, 0.3);
+            --bg-surface: rgba(15, 23, 42, 0.88);
+            --bg-header: rgba(12, 17, 29, 0.62);
+            --bg-card: rgba(15, 23, 42, 0.42);
+            --bg-card-inner: rgba(20, 30, 52, 0.48);
+            --bg-modal: rgba(15, 23, 42, 0.92);
+            --border-card: rgba(255, 255, 255, 0.12);
+            --border-subtle: rgba(255, 255, 255, 0.07);
+            --border-glow: rgba(56, 189, 248, 0.45);
             --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            --accent-cyan: #06b6d4;
-            --accent-green: #10b981;
-            --accent-purple: #8b5cf6;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --text-shadow: 0 1px 6px rgba(0, 0, 0, 0.75);
+            --btn-bg: rgba(255, 255, 255, 0.09);
+            --btn-hover: rgba(255, 255, 255, 0.18);
+            --btn-text: #f8fafc;
+            --input-bg: rgba(15, 23, 42, 0.56);
+            --chart-bg: rgba(15, 23, 42, 0.42);
+            --accent-cyan: #38bdf8;
+            --accent-green: #2dd4bf;
+            --accent-purple: #818cf8;
             --accent-amber: #f59e0b;
             --accent-red: #ef4444;
+            --wallpaper-bg: radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.14) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.14) 0px, transparent 50%);
             --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        html[data-theme="light"] {
+            --bg-base: #e2e8f0;
+            --bg-surface: rgba(255, 255, 255, 0.92);
+            --bg-header: rgba(255, 255, 255, 0.62);
+            --bg-card: rgba(255, 255, 255, 0.52);
+            --bg-card-inner: rgba(255, 255, 255, 0.58);
+            --bg-modal: rgba(255, 255, 255, 0.94);
+            --border-card: rgba(15, 23, 42, 0.12);
+            --border-subtle: rgba(15, 23, 42, 0.08);
+            --border-glow: rgba(59, 130, 246, 0.50);
+            --text-primary: #0f172a;
+            --text-secondary: #1e293b;
+            --text-muted: #475569;
+            --text-shadow: 0 1px 4px rgba(255, 255, 255, 0.75);
+            --btn-bg: rgba(15, 23, 42, 0.06);
+            --btn-hover: rgba(15, 23, 42, 0.12);
+            --btn-text: #0f172a;
+            --input-bg: rgba(255, 255, 255, 0.75);
+            --chart-bg: rgba(255, 255, 255, 0.45);
+            --accent-cyan: #0284c7;
+            --accent-green: #059669;
+            --accent-purple: #6366f1;
+            --accent-amber: #d97706;
+            --accent-red: #dc2626;
+            --wallpaper-bg: radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.18) 0px, transparent 55%), radial-gradient(at 100% 100%, rgba(129, 140, 248, 0.18) 0px, transparent 55%);
         }
 
         * {
@@ -35,16 +81,33 @@
             color: var(--text-primary);
             min-height: 100vh;
             padding-bottom: 50px;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.12) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.12) 0px, transparent 50%);
-            background-attachment: fixed;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background: var(--bg-base) var(--wallpaper-bg) center center / cover no-repeat;
+            transform: translateZ(0);
+            pointer-events: none;
+        }
+
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: transparent;
+            pointer-events: none;
         }
 
         /* Header */
         header {
-            background: rgba(15, 23, 42, 0.88);
-            backdrop-filter: blur(16px);
+            background: var(--bg-header);
+            backdrop-filter: blur(14px) saturate(1.25);
+            -webkit-backdrop-filter: blur(14px) saturate(1.25);
             border-bottom: 1px solid var(--border-card);
             position: sticky;
             top: 0;
@@ -55,6 +118,7 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 12px;
+            text-shadow: var(--text-shadow);
         }
 
         .logo-area {
@@ -174,7 +238,7 @@
         }
 
         .pill-tag {
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--btn-bg);
             border: 1px solid var(--border-card);
             padding: 3px 8px;
             border-radius: 6px;
@@ -199,12 +263,14 @@
 
         .kpi-card {
             background: var(--bg-card);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(8px) saturate(1.15);
+            -webkit-backdrop-filter: blur(8px) saturate(1.15);
             border: 1px solid var(--border-card);
             border-radius: 12px;
             padding: 12px 14px;
             position: relative;
             overflow: hidden;
+            text-shadow: var(--text-shadow);
         }
 
         .kpi-title {
@@ -238,8 +304,13 @@
             flex-wrap: wrap;
             gap: 8px;
             margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-card);
+            padding: 10px 12px;
+            background: var(--bg-header);
+            backdrop-filter: blur(12px) saturate(1.2);
+            -webkit-backdrop-filter: blur(12px) saturate(1.2);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            text-shadow: var(--text-shadow);
         }
 
         .tab-btn {
@@ -260,14 +331,14 @@
 
         .tab-btn:hover {
             color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.04);
+            background: var(--btn-bg);
         }
 
         .tab-btn.active {
-            color: #fff;
-            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+            background: color-mix(in srgb, var(--accent-cyan) 16%, var(--bg-card));
             border-color: var(--border-glow);
-            box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+            box-shadow: 0 2px 12px color-mix(in srgb, var(--accent-cyan) 22%, transparent);
         }
 
         /* Tab Content */
@@ -295,11 +366,14 @@
 
         .card {
             background: var(--bg-card);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(8px) saturate(1.15);
+            -webkit-backdrop-filter: blur(8px) saturate(1.15);
             border: 1px solid var(--border-card);
             border-radius: 14px;
             padding: 16px;
             position: relative;
+            box-shadow: 0 6px 22px rgba(15, 23, 42, 0.12);
+            text-shadow: var(--text-shadow);
         }
 
         .card-header {
@@ -307,7 +381,7 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 14px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-subtle);
             padding-bottom: 10px;
         }
 
@@ -326,7 +400,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 10px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            border-bottom: 1px solid var(--border-subtle);
             gap: 12px;
         }
 
@@ -397,9 +471,9 @@
 
         /* Buttons & Inputs */
         .btn {
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--btn-bg);
             border: 1px solid var(--border-card);
-            color: #fff;
+            color: var(--btn-text);
             padding: 7px 12px;
             border-radius: 8px;
             font-size: 12px;
@@ -413,8 +487,8 @@
         }
 
         .btn:hover {
-            background: rgba(255, 255, 255, 0.14);
-            border-color: rgba(255, 255, 255, 0.2);
+            background: var(--btn-hover);
+            border-color: var(--border-glow);
         }
 
         .btn:active {
@@ -422,24 +496,25 @@
         }
 
         .btn-primary {
-            background: var(--accent-cyan);
-            color: #041017;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            color: #ffffff;
             border: none;
-            box-shadow: 0 0 10px rgba(6, 182, 212, 0.35);
+            box-shadow: 0 2px 12px color-mix(in srgb, var(--accent-cyan) 35%, transparent);
+            text-shadow: none;
         }
 
         .btn-primary:hover {
-            background: #22d3ee;
-            color: #000;
+            filter: brightness(1.08);
+            color: #ffffff;
         }
 
         .btn-danger {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-            border-color: rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.18);
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.45);
         }
         .btn-danger:hover {
-            background: rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.85);
             color: #fff;
         }
 
@@ -450,9 +525,9 @@
         }
 
         select, input[type="text"], input[type="password"], input[type="number"], input[type="time"] {
-            background: rgba(15, 23, 42, 0.9);
+            background: var(--input-bg);
             border: 1px solid var(--border-card);
-            color: #fff;
+            color: var(--text-primary);
             padding: 7px 10px;
             border-radius: 8px;
             font-size: 12px;
@@ -460,19 +535,28 @@
             transition: all 0.2s;
         }
 
+        select option {
+            background: #0f172a;
+            color: #f8fafc;
+        }
+        html[data-theme="light"] select option {
+            background: #ffffff;
+            color: #0f172a;
+        }
+
         select:focus, input:focus {
             border-color: var(--accent-cyan);
-            box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
+            box-shadow: 0 0 8px color-mix(in srgb, var(--accent-cyan) 35%, transparent);
         }
 
         /* Chart Canvas */
         .chart-container {
             width: 100%;
             height: 185px;
-            background: rgba(15, 23, 42, 0.6);
+            background: var(--chart-bg);
             border-radius: 10px;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
             position: relative;
         }
 
@@ -483,8 +567,8 @@
         }
 
         .kpi-mini-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.07);
+            background: var(--bg-card-inner);
+            border: 1px solid var(--border-card);
             border-radius: 10px;
             padding: 10px 14px;
             display: flex;
@@ -493,8 +577,8 @@
             transition: all 0.2s ease;
         }
         .kpi-mini-card:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(6, 182, 212, 0.3);
+            background: var(--btn-hover);
+            border-color: var(--border-glow);
         }
         .kpi-mini-title {
             font-size: 11px;
@@ -509,13 +593,13 @@
         }
         .kpi-mini-sub {
             font-size: 11px;
-            color: #64748b;
+            color: var(--text-muted);
             font-family: var(--font-mono);
         }
         .history-tab-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #94a3b8;
+            background: var(--btn-bg);
+            border: 1px solid var(--border-card);
+            color: var(--text-secondary);
             padding: 4px 10px;
             border-radius: 6px;
             font-size: 11px;
@@ -524,9 +608,9 @@
             transition: all 0.2s ease;
         }
         .history-tab-btn.active, .history-tab-btn:hover {
-            background: rgba(6, 182, 212, 0.2);
-            border-color: #06b6d4;
-            color: #22d3ee;
+            background: color-mix(in srgb, var(--accent-cyan) 18%, var(--bg-card));
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
         }
 
         /* Tables */
@@ -550,7 +634,7 @@
 
         td {
             padding: 9px 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--border-subtle);
             font-family: var(--font-mono);
         }
 
@@ -701,10 +785,12 @@
             position: fixed;
             bottom: 24px;
             right: 24px;
-            background: var(--bg-surface);
+            background: var(--bg-modal);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
             border: 1px solid var(--accent-cyan);
-            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
-            color: #fff;
+            box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-cyan) 30%, transparent);
+            color: var(--text-primary);
             padding: 10px 18px;
             border-radius: 10px;
             font-size: 13px;
@@ -715,7 +801,7 @@
 
         /* Progress Bar */
         .progress-bar-bg {
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--border-subtle);
             border-radius: 9999px;
             height: 8px;
             overflow: hidden;
@@ -749,8 +835,9 @@
         }
 
         .footer-card {
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(12px);
+            background: var(--bg-card);
+            backdrop-filter: blur(8px) saturate(1.15);
+            -webkit-backdrop-filter: blur(8px) saturate(1.15);
             border: 1px solid var(--border-card);
             border-radius: 14px;
             padding: 16px 20px;
@@ -759,7 +846,8 @@
             justify-content: space-between;
             flex-wrap: wrap;
             gap: 14px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 6px 22px rgba(15, 23, 42, 0.12);
+            text-shadow: var(--text-shadow);
         }
 
         .footer-brand {
@@ -768,16 +856,16 @@
             gap: 8px;
             font-size: 14px;
             font-weight: 700;
-            color: #f8fafc;
+            color: var(--text-primary);
         }
 
         .footer-ver {
             font-size: 11px;
             padding: 2px 7px;
             border-radius: 9999px;
-            background: rgba(6, 182, 212, 0.15);
+            background: color-mix(in srgb, var(--accent-cyan) 15%, transparent);
             color: var(--accent-cyan);
-            border: 1px solid rgba(6, 182, 212, 0.3);
+            border: 1px solid color-mix(in srgb, var(--accent-cyan) 35%, transparent);
             font-family: var(--font-mono);
         }
 
@@ -803,29 +891,30 @@
             font-size: 12px;
             font-weight: 600;
             text-decoration: none;
-            background: rgba(255, 255, 255, 0.06);
+            background: var(--btn-bg);
             border: 1px solid var(--border-card);
-            color: #e2e8f0;
+            color: var(--btn-text);
             cursor: pointer;
             transition: all 0.2s ease;
         }
 
         .footer-btn:hover {
-            background: rgba(255, 255, 255, 0.14);
-            border-color: rgba(255, 255, 255, 0.2);
-            color: #fff;
+            background: var(--btn-hover);
+            border-color: var(--border-glow);
+            color: var(--btn-text);
             transform: translateY(-1px);
         }
 
         .footer-btn.primary {
-            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
             border: none;
             color: #fff;
-            box-shadow: 0 2px 10px rgba(6, 182, 212, 0.4);
+            box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-cyan) 35%, transparent);
+            text-shadow: none;
         }
 
         .footer-btn.primary:hover {
-            box-shadow: 0 4px 16px rgba(6, 182, 212, 0.6);
+            box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-cyan) 55%, transparent);
         }
 
         .footer-bottom-info {
@@ -843,7 +932,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(0, 0, 0, 0.55);
             backdrop-filter: blur(8px);
             z-index: 10000;
             align-items: center;
@@ -852,7 +941,9 @@
         }
 
         .doc-modal-content {
-            background: #080b11;
+            background: var(--bg-modal);
+            backdrop-filter: blur(22px) saturate(1.3);
+            -webkit-backdrop-filter: blur(22px) saturate(1.3);
             border: 1px solid var(--border-glow);
             border-radius: 16px;
             width: 100%;
@@ -861,7 +952,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
         }
 
         .doc-modal-header {
@@ -869,23 +960,23 @@
             align-items: center;
             justify-content: space-between;
             padding: 12px 20px;
-            background: rgba(15, 23, 42, 0.95);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--bg-header);
+            border-bottom: 1px solid var(--border-subtle);
         }
 
         .doc-modal-title {
             font-size: 14px;
             font-weight: 700;
-            color: #f8fafc;
+            color: var(--text-primary);
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
         .doc-modal-close {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #cbd5e1;
+            background: var(--btn-bg);
+            border: 1px solid var(--border-card);
+            color: var(--text-secondary);
             font-size: 16px;
             width: 32px;
             height: 32px;
@@ -908,7 +999,7 @@
             width: 100%;
             height: 100%;
             border: none;
-            background: #080b11;
+            background: var(--bg-base);
         }
     </style>
 </head>
@@ -923,9 +1014,10 @@
         </div>
         <div class="header-meta">
             <span class="pill-tag">📱 <span id="val-uptime">--</span></span>
-            <span class="pill-tag" style="color: var(--accent-cyan); font-weight: 600;">🌐 本机域名</span>
-            <span class="pill-tag" id="val-tailscale">100.65.203.43</span>
-            <span class="badge-online" id="status-cpe-state">全栈双下行正常</span>
+            <span class="pill-tag" id="val-local-domain" style="color: var(--accent-cyan); font-weight: 600;">🌐 本机域名</span>
+            <span class="pill-tag" id="val-tailscale">VPN: --</span>
+            <span class="badge-warn" id="status-cpe-state">状态检测中...</span>
+            <button type="button" class="btn btn-sm" id="theme-toggle-btn" onclick="cycleThemeMode()" title="切换日间浅色 / 夜间深色 / 按时间自动">🌓 自动</button>
         </div>
     </header>
 
@@ -934,23 +1026,23 @@
         <div class="kpi-grid">
             <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('overview')" title="点击查看实时流速波形大屏">
                 <div class="kpi-title">⬇️ 下行实时速率</div>
-                <div class="kpi-value" style="color: var(--accent-cyan);" id="kpi-rx">0.0 <span style="font-size: 12px;">Mbps</span></div>
-                <div class="kpi-sub" id="kpi-rx-total">累计: 0 MB</div>
+                <div class="kpi-value" style="color: var(--accent-cyan);" id="kpi-rx">-- <span style="font-size: 12px;">Mbps</span></div>
+                <div class="kpi-sub" id="kpi-rx-total">累计: --</div>
             </div>
             <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('overview')" title="点击查看实时流速波形大屏">
                 <div class="kpi-title">⬆️ 上行实时速率</div>
-                <div class="kpi-value" style="color: var(--accent-purple);" id="kpi-tx">0.0 <span style="font-size: 12px;">Mbps</span></div>
-                <div class="kpi-sub" id="kpi-tx-total">累计: 0 MB</div>
+                <div class="kpi-value" style="color: var(--accent-purple);" id="kpi-tx">-- <span style="font-size: 12px;">Mbps</span></div>
+                <div class="kpi-sub" id="kpi-tx-total">累计: --</div>
             </div>
-            <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('cellular')" title="点击查看 5G 射频基站与锁频">
+            <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('cellular')" title="点击查看 5G 射频基站与偏好模式">
                 <div class="kpi-title">📶 5G 射频指标</div>
-                <div class="kpi-value" style="color: var(--accent-green);" id="kpi-sinr">32 <span style="font-size: 12px;">dB SINR</span></div>
-                <div class="kpi-sub" id="kpi-rsrp">RSRP: -77 dBm (n78)</div>
+                <div class="kpi-value" style="color: var(--accent-green);" id="kpi-sinr">-- <span style="font-size: 12px;">dB SINR</span></div>
+                <div class="kpi-sub" id="kpi-rsrp">RSRP: --</div>
             </div>
             <div class="kpi-card" style="cursor: pointer;" onclick="openBatteryModal()" title="点击查看电池健康与旁路供电详情">
                 <div class="kpi-title">🔋 电池状态 / 实时电量</div>
-                <div class="kpi-value" id="kpi-batt-main" style="color: var(--accent-cyan); display: flex; align-items: baseline; gap: 8px;">--% <span style="font-size: 13px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8;" id="kpi-batt-tag">--</span></div>
-                <div class="kpi-sub" id="kpi-batt-sub">温度: --°C | 功率: -- W</div>
+                <div class="kpi-value" id="kpi-batt-main" style="color: var(--accent-cyan); display: flex; align-items: baseline; gap: 8px;">--% <span style="font-size: 13px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: var(--accent-cyan);" id="kpi-batt-tag">--</span></div>
+                <div class="kpi-sub" id="kpi-batt-sub">温度: -- | 功率: --</div>
             </div>
             <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('webdav')" title="点击查看内部存储全盘网盘">
                 <div class="kpi-title">💾 内部存储网盘</div>
@@ -960,17 +1052,17 @@
             <div class="kpi-card" style="cursor: pointer;" onclick="switchTab('performance')" title="点击查看 CPU/GPU 与应用进程管理">
                 <div class="kpi-title">🧠 CPU 负载 / 内存</div>
                 <div class="kpi-value" style="font-size: 16px;" id="kpi-cpu">--</div>
-                <div class="kpi-sub" id="kpi-ram">RAM: --% | ZRAM 8G</div>
+                <div class="kpi-sub" id="kpi-ram">RAM: -- | ZRAM --</div>
             </div>
         </div>
 
         <!-- Navigation Tabs -->
         <div class="tab-bar">
             <button class="tab-btn active" onclick="switchTab('overview')">📊 实时流速大屏</button>
-            <button class="tab-btn" onclick="switchTab('cellular')">📶 5G 射频与锁频</button>
+            <button class="tab-btn" onclick="switchTab('cellular')">📶 5G 射频与制式</button>
             <button class="tab-btn" onclick="switchTab('performance')">⚡ 系统性能与进程</button>
             <button class="tab-btn" onclick="switchTab('wifi-client')">📡 Wi-Fi 客户端设置</button>
-            <button class="tab-btn" onclick="switchTab('hotspot')">🔥 5G 热点与定时调度</button>
+            <button class="tab-btn" onclick="switchTab('hotspot')">🔥 5G 热点与状态</button>
             <button class="tab-btn" onclick="switchTab('webdav')">💾 局域网高速网盘</button>
             <button class="tab-btn" onclick="switchTab('clients')">👥 已连设备与限速</button>
             <button class="tab-btn" onclick="switchTab('routing')">🎛️ 路由与电竞流控</button>
@@ -1001,7 +1093,7 @@
                 <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <div class="card-title">📊 历史流量统计与报表 (Traffic Accounting)</div>
-                        <span class="pill-tag" style="font-size: 11px; border-color: rgba(6, 182, 212, 0.3); color: #22d3ee;">SQLite 365天滚动存储</span>
+                        <span class="pill-tag" style="font-size: 11px; border-color: rgba(6, 182, 212, 0.3); color: var(--accent-cyan);">SQLite 365天滚动存储</span>
                     </div>
                     <div style="display: flex; gap: 6px; align-items: center;">
                         <button class="history-tab-btn active" id="btn-hist-hourly" onclick="switchHistoryTab('hourly')">📅 今日小时 (24h)</button>
@@ -1014,22 +1106,22 @@
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px;">
                     <div class="kpi-mini-card">
                         <div class="kpi-mini-title">📅 今日流量 (Today)</div>
-                        <div class="kpi-mini-val" id="stat-today-total">0.0 MB</div>
-                        <div class="kpi-mini-sub" id="stat-today-sub">↓ 0 B · ↑ 0 B</div>
+                        <div class="kpi-mini-val" id="stat-today-total">--</div>
+                        <div class="kpi-mini-sub" id="stat-today-sub">↓ -- · ↑ --</div>
                     </div>
                     <div class="kpi-mini-card">
                         <div class="kpi-mini-title">📆 本周用量 (This Week)</div>
-                        <div class="kpi-mini-val" id="stat-week-total">0.0 MB</div>
-                        <div class="kpi-mini-sub" id="stat-week-sub">昨日: 0.0 MB</div>
+                        <div class="kpi-mini-val" id="stat-week-total">--</div>
+                        <div class="kpi-mini-sub" id="stat-week-sub">昨日用量: --</div>
                     </div>
                     <div class="kpi-mini-card">
                         <div class="kpi-mini-title">🗓️ 本月用量 (This Month)</div>
-                        <div class="kpi-mini-val" id="stat-month-total">0.0 MB</div>
-                        <div class="kpi-mini-sub" id="stat-month-sub">上月: 0.0 MB</div>
+                        <div class="kpi-mini-val" id="stat-month-total">--</div>
+                        <div class="kpi-mini-sub" id="stat-month-sub">上月同期: --</div>
                     </div>
                     <div class="kpi-mini-card">
                         <div class="kpi-mini-title">📈 近一年累计 (365 Days)</div>
-                        <div class="kpi-mini-val" id="stat-year-total">0.0 GB</div>
+                        <div class="kpi-mini-val" id="stat-year-total">--</div>
                         <div class="kpi-mini-sub" id="stat-year-sub">60s内存缓冲 · 防闪存磨损</div>
                     </div>
                 </div>
@@ -1045,88 +1137,88 @@
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">📶 5G 蜂窝活动连接</div>
-                        <span class="badge-online" id="ov-cell-badge">5G SA 活跃</span>
+                        <span class="badge-offline" id="ov-cell-badge">检测中...</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">运营商与频段</span>
-                        <span class="pill-tag" id="ov-cell-op">中国电信 5G (Band n78)</span>
+                        <span class="pill-tag" id="ov-cell-op">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">蜂窝出口 IP</span>
                         <span class="pill-tag" id="ov-cell-ip">--</span>
                     </div>
                     <div class="ctrl-row">
-                        <span class="ctrl-label">出栈 TTL / MTU</span>
-                        <span class="pill-tag">TTL=64 | MTU=1420 (防风控)</span>
+                        <span class="ctrl-label">接入通道 / APN</span>
+                        <span class="pill-tag" id="ov-cell-apn">--</span>
                     </div>
                 </div>
 
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">⚡ USB-C 千兆以太网 (上游下发)</div>
-                        <span class="badge-online" id="ov-eth-badge">以太网共享中</span>
+                        <div class="card-title">⚡ USB-C 有线以太网 (LAN 下行)</div>
+                        <span class="badge-offline" id="ov-eth-badge">检测中...</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">物理线缆检测</span>
-                        <span class="pill-tag" id="ov-eth-carrier">已连接千兆线缆</span>
+                        <span class="pill-tag" id="ov-eth-carrier">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">分配网关 IP</span>
                         <span class="pill-tag" id="ov-eth-ip">--</span>
                     </div>
                     <div class="ctrl-row">
-                        <span class="ctrl-label">下挂设备</span>
-                        <span class="pill-tag">上游路由器</span>
+                        <span class="ctrl-label">下行路由器状态</span>
+                        <span class="pill-tag" id="ov-eth-router">--</span>
                     </div>
                 </div>
 
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">📡 Wi-Fi 6 热点 (SoftAP)</div>
-                        <span class="badge-online" id="ov-ap-badge">热点已开启</span>
+                        <span class="badge-offline" id="ov-ap-badge">检测中...</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">热点网段 IP</span>
                         <span class="pill-tag" id="ov-ap-ip">--</span>
                     </div>
                     <div class="ctrl-row">
-                        <span class="ctrl-label">协议与频段</span>
-                        <span class="pill-tag">Wi-Fi 6 (802.11ax) 5GHz</span>
+                        <span class="ctrl-label">广播热点与信道</span>
+                        <span class="pill-tag" id="ov-ap-ssid">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">免配直达域名</span>
-                        <span class="pill-tag" style="color: var(--accent-cyan);">本机域名</span>
+                        <span class="pill-tag" id="ov-ap-domain" style="color: var(--accent-cyan);">--</span>
                     </div>
                 </div>
 
                 <div class="card" id="card-batt-health">
                     <div class="card-header">
                         <div class="card-title">🔋 硬件供电与电池健康管理</div>
-                        <span class="badge-bypass" id="ov-batt-badge">🛡️ 旁路供电保护中</span>
+                        <span class="badge-offline" id="ov-batt-badge">检测中...</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">实时电量与状态</span>
-                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: 600;" id="ov-batt-cap-text">--%</span>
+                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: 600;" id="ov-batt-cap-text">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">输入供电协议</span>
-                        <span class="pill-tag" id="ov-batt-usb">USB-PD (Type-C 拓展坞)</span>
+                        <span class="pill-tag" id="ov-batt-usb">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">充放电实时功率</span>
-                        <span class="pill-tag" id="ov-batt-pwr">-- W (-- V / -- mA)</span>
+                        <span class="pill-tag" id="ov-batt-pwr">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">电池健康度 (容量)</span>
-                        <span class="pill-tag" id="ov-batt-health">--% (满充 -- / 设计 -- mAh)</span>
+                        <span class="pill-tag" id="ov-batt-health">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">电池充放循环次数</span>
-                        <span class="pill-tag" id="ov-batt-cycles">-- 次</span>
+                        <span class="pill-tag" id="ov-batt-cycles">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">电芯与充电芯片温度</span>
-                        <span class="pill-tag" id="ov-batt-temp">--°C</span>
+                        <span class="pill-tag" id="ov-batt-temp">--</span>
                     </div>
                 </div>
             </div>
@@ -1137,36 +1229,36 @@
             <div class="cards-grid">
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">🛰️ 5G SA 深度射频遥测</div>
-                        <span class="badge-online">基带锁死</span>
+                        <div class="card-title">🛰️ 5G/4G 深度射频遥测</div>
+                        <span class="badge-offline" id="cel-rat-badge">待查询</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">运营商</span>
-                        <span class="pill-tag" id="cel-op">中国电信 (China Telecom)</span>
+                        <span class="pill-tag" id="cel-op">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">移动国家/网络码 (PLMN)</span>
-                        <span class="pill-tag" id="cel-plmn">460-11</span>
+                        <span class="pill-tag" id="cel-plmn">--</span>
                     </div>
                     <div class="ctrl-row">
-                        <span class="ctrl-label">5G 频段 (NR Band)</span>
-                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;" id="cel-band">Band n78</span>
+                        <span class="ctrl-label">当前频段 (Band)</span>
+                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;" id="cel-band">--</span>
                     </div>
                     <div class="ctrl-row">
-                        <span class="ctrl-label">NR-ARFCN 下行绝对频点</span>
-                        <span class="pill-tag" id="cel-arfcn">633984</span>
+                        <span class="ctrl-label">ARFCN 下行绝对频点</span>
+                        <span class="pill-tag" id="cel-arfcn">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">物理小区识别码 (PCI)</span>
-                        <span class="pill-tag" id="cel-pci">90</span>
+                        <span class="pill-tag" id="cel-pci">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">跟踪区代码 (TAC)</span>
-                        <span class="pill-tag" id="cel-tac">12780032</span>
+                        <span class="pill-tag" id="cel-tac">--</span>
                     </div>
                     <div class="ctrl-row">
-                        <span class="ctrl-label">5G 小区全局标识 (NCI)</span>
-                        <span class="pill-tag" id="cel-nci">52357247077</span>
+                        <span class="ctrl-label">小区全局标识 (NCI / CI)</span>
+                        <span class="pill-tag" id="cel-nci">--</span>
                     </div>
                 </div>
 
@@ -1180,53 +1272,53 @@
                             <span>SS-RSRP 参考信号接收功率</span>
                             <span class="ctrl-desc">范围: -140 ~ -40 dBm (越接近 -40 信号越强)</span>
                         </div>
-                        <span class="pill-tag" style="color: var(--accent-green); font-weight: bold;" id="cel-rsrp">-77 dBm</span>
+                        <span class="pill-tag" style="color: var(--accent-green); font-weight: bold;" id="cel-rsrp">--</span>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
                             <span>SS-SINR 信噪比</span>
                             <span class="ctrl-desc">>25 dB 为极佳无干扰净空频谱</span>
                         </div>
-                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;" id="cel-sinr">32 dB (极度干净)</span>
+                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;" id="cel-sinr">--</span>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
                             <span>SS-RSRQ 参考信号接收质量</span>
                             <span class="ctrl-desc">范围: -20 ~ -3 dB</span>
                         </div>
-                        <span class="pill-tag" id="cel-rsrq">-11 dB</span>
+                        <span class="pill-tag" id="cel-rsrq">--</span>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
                             <span>信号强度等级</span>
                             <span class="ctrl-desc">Android 原生电平 (0~4)</span>
                         </div>
-                        <span class="badge-online" id="cel-level">4 / 4 满格</span>
+                        <span class="badge-offline" id="cel-level">--</span>
                     </div>
                     <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;">
-                        <button class="btn btn-primary" onclick="triggerAction('refresh_cellular')">⚡ 飞行模式一键刷新基带重搜网</button>
+                        <button class="btn btn-primary" onclick="refreshCellularSafe()">⚡ 平滑刷新蜂窝信号（不断网）</button>
                     </div>
                 </div>
 
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">🔒 5G 偏好与锁频模式</div>
+                        <div class="card-title">🔒 5G 制式偏好模式</div>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
                             <span>网络接入偏好</span>
-                            <span class="ctrl-desc">强制 SA 纯 5G 模式可杜绝 4G 回落与频段切换延迟</span>
+                            <span class="ctrl-desc">切换 Android 首选网络制式（sa_only / auto / lte_only）</span>
                         </div>
                         <select id="sel-network-mode" onchange="changeNetworkMode(this.value)">
-                            <option value="sa_only" selected>🚀 5G SA 纯独立组网 (锁定 n78/n1/n28)</option>
-                            <option value="auto">⚖️ 5G SA/NSA 双模自适应</option>
+                            <option value="sa_only">🚀 5G SA 纯独立组网</option>
+                            <option value="auto" selected>⚖️ 5G SA/NSA 双模自适应</option>
                             <option value="lte_only">📶 4G LTE 应急备用</option>
                         </select>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
                             <span>Anti-C-DRX 5G 射频防休眠</span>
-                            <span class="ctrl-desc">200ms 心跳杜绝基站 30ms 射频唤醒抖动</span>
+                            <span class="ctrl-desc">保活心跳降低基站 RRC 唤醒抖动</span>
                         </div>
                         <label class="switch">
                             <input type="checkbox" id="chk-cel-anti-cdrx" onchange="toggleAntiCDRX(this.checked)">
@@ -1236,10 +1328,10 @@
                 </div>
             </div>
 
-            <!-- 周边基站小区雷达扫描与锁定 (Cell Radar & Band Lock) -->
+            <!-- 周边基站小区雷达扫描与制式切换 -->
             <div class="card" style="margin-top: 16px;">
                 <div class="card-header">
-                    <div class="card-title">📡 周边基站小区雷达扫描与锁定 (Nearby Cell Radar & Lock)</div>
+                    <div class="card-title">📡 周边基站小区雷达扫描 (Nearby Cell Radar)</div>
                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                         <select id="sel-cell-scan-mode" onchange="fetchNearbyCells()" style="padding: 5px 8px; font-size: 11px;">
                             <option value="all" selected>🌐 扫描全部制式 (5G NR + 4G LTE)</option>
@@ -1247,7 +1339,7 @@
                             <option value="lte">📶 仅搜 4G LTE 基站小区</option>
                         </select>
                         <button class="btn btn-sm btn-primary" onclick="fetchNearbyCells()">🔍 扫描周边基站小区</button>
-                        <button class="btn btn-sm" onclick="fetchNearbyCells(1)">⚡ 触发基带重选搜网</button>
+                        <button class="btn btn-sm" onclick="fetchNearbyCells(1)">⚡ 刷新基带测量</button>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -1262,7 +1354,7 @@
                                 <th>小区标识 (NCI)</th>
                                 <th>信号质量 (RSRP / SINR)</th>
                                 <th>连接状态</th>
-                                <th>基带锁定</th>
+                                <th>制式偏好</th>
                             </tr>
                         </thead>
                         <tbody id="cells-list-body">
@@ -1279,8 +1371,8 @@
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 20px;">
                 <div class="card" style="padding: 16px;">
                     <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: flex; justify-content: space-between;">
-                        <span>🧠 骁龙 870 CPU 负载</span>
-                        <span id="perf-cpu-badge" class="badge badge-green">8 核 (1+3+4)</span>
+                        <span>🧠 CPU 负载</span>
+                        <span id="perf-cpu-badge" class="badge-online">--</span>
                     </div>
                     <div style="font-size: 28px; font-weight: 700; color: var(--accent-cyan); font-family: var(--font-mono);" id="perf-cpu-usage">--%</div>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-cpu-load">Load: -- / -- / --</div>
@@ -1288,29 +1380,29 @@
 
                 <div class="card" style="padding: 16px;">
                     <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: flex; justify-content: space-between;">
-                        <span>🎮 Adreno 650 GPU 状态</span>
-                        <span id="perf-gpu-badge" class="badge badge-purple">GPU</span>
+                        <span>🎮 GPU 状态</span>
+                        <span id="perf-gpu-badge" class="badge-online">GPU</span>
                     </div>
                     <div style="font-size: 28px; font-weight: 700; color: var(--accent-purple); font-family: var(--font-mono);" id="perf-gpu-usage">--%</div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-gpu-freq">主频: -- MHz</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-gpu-freq">主频: --</div>
                 </div>
 
                 <div class="card" style="padding: 16px;">
                     <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: flex; justify-content: space-between;">
-                        <span>💾 LPDDR5 物理内存</span>
-                        <span class="badge badge-blue">8 GB</span>
+                        <span>💾 物理内存 (RAM)</span>
+                        <span id="perf-mem-badge" class="badge-online">--</span>
                     </div>
                     <div style="font-size: 28px; font-weight: 700; color: var(--accent-green); font-family: var(--font-mono);" id="perf-mem-usage">--%</div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-mem-detail">已用: -- MB / 总计: -- MB</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-mem-detail">已用: -- / 总计: --</div>
                 </div>
 
                 <div class="card" style="padding: 16px;">
                     <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: flex; justify-content: space-between;">
-                        <span>🗄️ ZRAM 极速内存拓展</span>
-                        <span class="badge badge-amber">24 GB</span>
+                        <span>🗄️ ZRAM / Swap 扩展</span>
+                        <span id="perf-swap-badge" class="badge-warn">--</span>
                     </div>
                     <div style="font-size: 28px; font-weight: 700; color: var(--accent-amber); font-family: var(--font-mono);" id="perf-swap-usage">--%</div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-swap-detail">已用: -- MB / 总计: -- MB</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;" id="perf-swap-detail">已用: -- / 总计: --</div>
                 </div>
             </div>
 
@@ -1319,7 +1411,7 @@
                 <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
                     <div class="card-title">📱 实时运行应用与进程监控 (Process & Task Manager)</div>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <input type="text" id="proc-search" placeholder="🔍 搜索应用/进程/PID..." oninput="renderProcessTable()" style="background: rgba(15,23,42,0.8); border: 1px solid var(--border-card); color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12px; outline: none;">
+                        <input type="text" id="proc-search" placeholder="🔍 搜索应用/进程/PID..." oninput="renderProcessTable()" style="padding: 6px 12px; border-radius: 8px; font-size: 12px;">
                         <button type="button" class="btn btn-sm" onclick="fetchProcesses()">🔄 立即刷新</button>
                         <label style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; cursor: pointer;">
                             <input type="checkbox" id="proc-auto-refresh" checked onchange="toggleProcAutoRefresh()"> 3s 自动轮询
@@ -1357,11 +1449,9 @@
                     💡 核心防断网科普：手机 Wi-Fi 开关与无线 ADB (端口 5555) 的关系
                 </div>
                 <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
-                    • <b>无线 ADB (5555) 根本不需要打开手机 Wi-Fi！</b><br>
-                    手机通过 USB 网卡接入上游路由器，电脑访问 <code>本机IP:5555</code> 走以太网物理线直连。即使手机 Wi-Fi 彻底关闭，ADB 也 100% 满血秒连！<br>
-                    • <b>千万不要让手机再连接上游路由器的 Wi-Fi：</b><br>
-                    上游路由器的网络由手机以太网供给，若手机再连该路由器 Wi-Fi 会形成死锁回环（互等对方供网）导致全网中断！系统已帮您遗忘该网络，安全无虞。<br>
-                    • <b>最佳实践建议：</b> 平时建议保持下方 Wi-Fi 主开关<b>处于关闭状态</b>，既省电降温，又可彻底杜绝网络回环！
+                    • <b>无线 ADB (5555) 不需要打开手机 Wi-Fi</b>：通过 USB 以太网或热点网段直连本机 IP 即可稳定连接。<br>
+                    • <b>避免连接下游/上游同一路由器的 Wi-Fi</b>：防止形成网络死锁回环。<br>
+                    • <b>最佳实践</b>：无上联 Wi-Fi 需求时建议关闭 Wi-Fi STA 开关以省电降温。
                 </div>
             </div>
 
@@ -1415,18 +1505,18 @@
             </div>
         </div>
 
-        <!-- ==================== Tab 4: Hotspot & Schedule ==================== -->
+        <!-- ==================== Tab 5: Hotspot ==================== -->
         <div id="tab-hotspot" class="tab-content">
             <div class="cards-grid">
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">🔥 5G 热点 (SoftAP) 核心参数配置</div>
-                        <span class="badge-online" id="badge-hotspot-status">就绪</span>
+                        <span class="badge-offline" id="badge-hotspot-status">检测中</span>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
                             <span>热点总开关</span>
-                            <span class="ctrl-desc">即时启用或停用 Wi-Fi 6 热点</span>
+                            <span class="ctrl-desc">即时启用或停用 Wi-Fi 热点</span>
                         </div>
                         <label class="switch">
                             <input type="checkbox" id="chk-hotspot-active" onchange="toggleHotspot(this.checked)">
@@ -1434,27 +1524,39 @@
                         </label>
                     </div>
                     <div class="ctrl-row">
-                        <span class="ctrl-label">热点名称 (SSID)</span>
-                        <input type="text" id="hs-ssid" value="CyberGate" style="width: 180px;">
+                        <div class="ctrl-label">
+                            <span>实时广播热点 (wlan1)</span>
+                            <span class="ctrl-desc">由系统实际广播的热点名称与信道 (iw dev info)</span>
+                        </div>
+                        <span class="pill-tag" id="hs-live-info" style="color: var(--accent-cyan); font-weight: 600;">--</span>
                     </div>
                     <div class="ctrl-row">
-                        <span class="ctrl-label">热点密码</span>
-                        <input type="text" id="hs-password" value="" placeholder="热点密码" style="width: 180px;">
+                        <span class="ctrl-label">热点名称 (SoftAP XML SSID)</span>
+                        <input type="text" id="hs-ssid" value="" placeholder="读取中..." style="width: 180px;">
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">热点密码 (WPA2)</span>
+                        <input type="text" id="hs-password" value="" placeholder="至少 8 位密码" style="width: 180px;">
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">发射频段</span>
                         <select id="hs-band" style="width: 180px;">
-                            <option value="2" selected>5GHz (高速电竞 / 推荐)</option>
+                            <option value="2">5GHz (高速电竞 / 推荐)</option>
                             <option value="1">2.4GHz (强力穿墙)</option>
+                            <option value="3">双频并发 (2.4GHz + 5GHz)</option>
                         </select>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">锁定信道 (0 = ACS 自动)</span>
+                        <input type="number" id="hs-channel" value="0" min="0" max="165" style="width: 180px;">
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
                             <span>Wi-Fi 6 (802.11ax) 高速协议</span>
-                            <span class="ctrl-desc">开启 1200Mbps 高并发与低延迟</span>
+                            <span class="ctrl-desc">开启高并发与低延迟</span>
                         </div>
                         <label class="switch">
-                            <input type="checkbox" id="hs-ax" checked>
+                            <input type="checkbox" id="hs-ax">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -1469,56 +1571,62 @@
                         </label>
                     </div>
                     <div style="margin-top: 14px;">
-                        <button class="btn btn-primary" style="width: 100%;" onclick="saveHotspotConfig()">💾 保存并立即应用热点配置</button>
+                        <button class="btn btn-primary" style="width: 100%;" onclick="saveHotspotConfig()">💾 保存 SoftAp 配置</button>
                     </div>
                 </div>
 
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">🛡️ 热点常开架构 (2026-10 重构)</div>
-                        <span class="badge-online">常开锁定</span>
+                        <div class="card-title">🛡️ 实时热点运行状态 (iw / SoftAp 对账)</div>
+                        <span class="badge-offline" id="hs-live-badge">待查询</span>
                     </div>
-                    <div style="font-size: 13px; line-height: 1.8; color: var(--text-secondary);">
-                        <div>• <b>热点已配置为 24 小时常开</b>（AutoShutdown 从不），由系统 SoftAp 配置持久化，重启自动恢复。</div>
-                        <div>• <b>box-guard 守护</b>每 15 秒巡检：代理核心崩溃自动重启，连续失败自动回退纯直连，热点永不断网。</div>
-                        <div>• <b>建议锁定干净信道（按你的环境扫描后选择，5GHz + 80MHz 吞吐与延迟均衡）。</div>
-                        <div>• <b>旧「定时调度」已退役</b>：常开架构下排程无意义，相关后端消费逻辑已不存在。</div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">当前实际运行 SSID (iw dev)</span>
+                        <span class="pill-tag" id="hs-live-ssid">--</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">当前实际信道</span>
+                        <span class="pill-tag" id="hs-live-channel">--</span>
+                    </div>
+                    <div class="ctrl-row">
+                        <span class="ctrl-label">当前接口 IP</span>
+                        <span class="pill-tag" id="hs-live-ip">--</span>
+                    </div>
+                    <div style="font-size: 12px; line-height: 1.7; color: var(--text-secondary); margin-top: 12px;">
+                        <div>• <b>SoftAp XML</b> 与外部守护脚本（如 <code>hotspot-guard</code>）各自生效；若外部守护脚本指定了固定 SSID，实际广播名称以「当前实际运行 SSID」为准。</div>
+                        <div>• <b>信道建议</b>：优先选择 5GHz + 80MHz 非雷达干净信道（如 36-48 或 149-161，具体以当地法规和周边扫描结果为准）。</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ==================== Tab 5: WebDAV Storage ==================== -->
+        <!-- ==================== Tab 6: WebDAV Storage ==================== -->
         <div id="tab-webdav" class="tab-content">
             <div class="cards-grid">
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">💾 局域网高速网盘 (WebDAV Storage)</div>
-                        <span class="badge-online">🟢 运行中 (58080)</span>
+                        <span class="badge-offline" id="dav-status-badge">检测中...</span>
                     </div>
                     <div style="margin-bottom: 12px;">
                         <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
                             <span>内部存储容量 (/sdcard)</span>
-                            <span id="dav-storage-text" style="font-family: var(--font-mono); color: var(--accent-cyan);">70.0 GB 可用 / 106.0 GB</span>
+                            <span id="dav-storage-text" style="font-family: var(--font-mono); color: var(--accent-cyan);">--</span>
                         </div>
                         <div class="progress-bar-bg">
-                            <div class="progress-bar-fill" id="dav-storage-bar" style="width: 34%;"></div>
+                            <div class="progress-bar-fill" id="dav-storage-bar" style="width: 0%;"></div>
                         </div>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">局域网服务地址</span>
-                        <span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;">http://&lt;网关&gt;:58080/</span>
-                    </div>
-                    <div class="ctrl-row">
-                        <span class="ctrl-label">备用直连地址</span>
-                        <span class="pill-tag">http://192.168.1.1:58080/</span>
+                        <span class="pill-tag" id="dav-url-primary" style="color: var(--accent-cyan); font-weight: bold;">--</span>
                     </div>
                     <div class="ctrl-row">
                         <span class="ctrl-label">挂载全盘路径</span>
                         <span class="pill-tag">/sdcard (手机全部内部存储)</span>
                     </div>
                     <div style="margin-top: 14px; display: flex; gap: 10px;">
-                        <a href="http://&lt;网关&gt;:58080/" target="_blank" class="btn btn-primary" style="text-decoration: none; flex: 1; text-align: center;">📂 直接在浏览器打开网盘</a>
+                        <a id="dav-open-link" href="#" target="_blank" class="btn btn-primary" style="text-decoration: none; flex: 1; text-align: center;">📂 直接在浏览器打开网盘</a>
                     </div>
                 </div>
 
@@ -1528,25 +1636,25 @@
                     </div>
                     <div style="font-size: 12px; line-height: 1.6; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px;">
                         <div><b>🪟 Windows 资源管理器映射为网络硬盘 (Z: 盘)：</b></div>
-                        <div style="background: rgba(0,0,0,0.5); padding: 8px 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-green); border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
-                            <span id="cmd-win-mount">net use Z: http://&lt;网关&gt;:58080 /persistent:yes</span>
-                            <button class="btn btn-sm btn-primary" onclick="copyToClipboard('net use Z: http://&lt;网关&gt;:58080 /persistent:yes')">📋 复制</button>
+                        <div style="background: rgba(0,0,0,0.45); padding: 8px 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-green); border: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
+                            <span id="cmd-win-mount">net use Z: http://--:58080 /persistent:yes</span>
+                            <button class="btn btn-sm btn-primary" onclick="copyWinMountCmd()">📋 复制</button>
                         </div>
                         <div style="color: var(--text-muted); font-size: 11px;">
-                            💡 提示：按 <code>Win + R</code> 粘贴上方命令按回车，几秒后“此电脑”就会出现一个名为 <b>Z:</b> 的 100GB 本地磁盘，随存随取 PPT、作业、影音大文件！
+                            💡 提示：按 <code>Win + R</code> 粘贴上方命令按回车，即可把手机内部存储映射为本地网络磁盘。
                         </div>
-                        <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
-                            <b>🍎 macOS / iOS：</b> Finder -> 前往 -> 连接服务器 -> 输入 <code>http://&lt;网关&gt;:58080</code>。
+                        <div style="border-top: 1px solid var(--border-subtle); padding-top: 6px;">
+                            <b>🍎 macOS / iOS：</b> Finder -&gt; 前往 -&gt; 连接服务器 -&gt; 输入 <code id="dav-mac-url">http://--:58080</code>。
                         </div>
                         <div>
-                            <b>📱 Android：</b> MT 管理器 / CX 文件浏览器 -> 添加网络存储 -> WebDAV -> 地址填写 <code>&lt;网关&gt;:58080</code>。
+                            <b>📱 Android：</b> MT 管理器 / CX 文件浏览器 -&gt; 添加网络存储 -&gt; WebDAV -&gt; 地址填写 <code id="dav-android-url">--:58080</code>。
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ==================== Tab 6: Clients & Rate Limiting ==================== -->
+        <!-- ==================== Tab 7: Clients & Rate Limiting ==================== -->
         <div id="tab-clients" class="tab-content">
             <div class="card" style="margin-bottom: 16px;">
                 <div class="card-header">
@@ -1555,7 +1663,7 @@
                 <div class="ctrl-row">
                     <div class="ctrl-label">
                         <span>整机出口 / 下行以太网速率限制</span>
-                        <span class="ctrl-desc">满血 CAKE 智能整流，杜绝大文件下载挤爆基站导致游戏跳 ping</span>
+                        <span class="ctrl-desc">CAKE 智能整形（需设备已部署 tc_cake）</span>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <select id="sel-qos-limit" onchange="applyGlobalRateLimit(this.value)">
@@ -1571,16 +1679,16 @@
 
             <div class="card">
                 <div class="card-header" style="flex-wrap: wrap; gap: 8px;">
-                    <div class="card-title">👥 当前已连终端清单（热点 + 上游路由器双端融合）</div>
+                    <div class="card-title">👥 当前已连终端清单</div>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <button class="btn btn-sm" onclick="fetchClients()">🔄 刷新设备</button>
                     </div>
                 </div>
 
                 <!-- Router Status Indicator -->
-                <div id="clients-router-status" style="margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; font-size: 12px; background: rgba(30,41,59,0.7); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                    <span id="clients-router-msg" style="color: var(--text-secondary);">🔍 正在探测 OpenWrt 路由器连接状态...</span>
-                    <span id="clients-count-badge" class="badge badge-cyan" style="font-size: 11px;">0 台终端在线</span>
+                <div id="clients-router-status" style="margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; font-size: 12px; background: var(--bg-card-inner); border: 1px solid var(--border-card); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <span id="clients-router-msg" style="color: var(--text-secondary);">🔍 正在探测上游路由器连接状态...</span>
+                    <span id="clients-count-badge" class="badge-online" style="font-size: 11px;">0 台终端在线</span>
                 </div>
 
                 <div class="table-responsive">
@@ -1594,7 +1702,7 @@
                                 <th>实时网速 (↓下行 / ↑上行)</th>
                                 <th>累计流量</th>
                                 <th>状态</th>
-                                <th>单机限速</th>
+                                <th>单机上行限速</th>
                                 <th style="text-align: right;">操作</th>
                             </tr>
                         </thead>
@@ -1606,25 +1714,25 @@
             </div>
         </div>
 
-        <!-- ==================== Tab 7: Routing & Gaming ==================== -->
+        <!-- ==================== Tab 8: Routing & Gaming ==================== -->
         <div id="tab-routing" class="tab-content">
             <div class="cards-grid">
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">🔌 USB-C 千兆以太网 (全自动热插拔看门狗)</div>
-                        <span class="badge-online">🟢 守护中</span>
+                        <div class="card-title">🔌 USB-C 千兆以太网共享</div>
+                        <span class="badge-offline" id="routing-eth-badge">检测中...</span>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
-                            <span>网关底座守护 (50-net-keeper)</span>
-                            <span class="ctrl-desc">每 10 秒自愈：IP/路由/NAT/DHCP/CAKE/跨网段互通。watchdog.sh 已退役，由 keeper 接管。</span>
+                            <span>底座看护守护进程 (Watchdog / Keeper)</span>
+                            <span class="ctrl-desc">检测看护脚本运行状态（需在 config 配置脚本路径）</span>
                         </div>
-                        <span class="badge-online">常驻自愈</span>
+                        <span class="badge-offline" id="routing-keeper-badge">--</span>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
-                            <span>手动强制唤醒 / 重置共享 (应急备用)</span>
-                            <span class="ctrl-desc">正常情况下插线自动连通；此开关仅供网络偶发卡死时手动重新触发</span>
+                            <span>手动强制唤醒 / 重置以太网共享</span>
+                            <span class="ctrl-desc">仅供网络偶发异常时手动触发 Android Tethering</span>
                         </div>
                         <label class="switch">
                             <input type="checkbox" id="chk-eth-tether" onchange="toggleEthTether(this.checked)">
@@ -1635,25 +1743,25 @@
 
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">🎮 电竞流控与 CS2 VIP 染色</div>
+                        <div class="card-title">🎮 电竞流控与射频优化</div>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
-                            <span>500 字节以下实时 UDP 动作优先</span>
-                            <span class="ctrl-desc">开枪/移动/跳跃同步包加冕 DSCP EF 电竞最高优先仓</span>
+                            <span>500B 以下 UDP 小包 DSCP EF</span>
+                            <span class="ctrl-desc">iptables mangle 规则实时状态</span>
                         </div>
-                        <span class="badge-online">已固化 keeper</span>
+                        <span class="badge-offline" id="routing-qos500-badge">--</span>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
                             <span>CS2 / Steam SDR (27000:27065)</span>
-                            <span class="ctrl-desc">Valve 官方电竞专线加冕 DSCP EF</span>
+                            <span class="ctrl-desc">游戏专线 DSCP EF 染色状态</span>
                         </div>
-                        <span class="badge-online">已固化 keeper</span>
+                        <span class="badge-offline" id="routing-qoscs2-badge">--</span>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
-                            <span>Wi-Fi 6 射频省电模式</span>
+                            <span>Wi-Fi 射频省电模式</span>
                             <span class="ctrl-desc">关闭可消除 5~30ms 随机休眠抖动</span>
                         </div>
                         <label class="switch">
@@ -1667,17 +1775,20 @@
                     <div class="card-header">
                         <div class="card-title">🚀 局域网设备联动</div>
                     </div>
-                    <div class="ctrl-row">
+                    <div class="ctrl-row" style="flex-wrap: wrap;">
                         <div class="ctrl-label">
-                            <span>一键网络唤醒 (Wake-on-LAN)</span>
-                            <span class="ctrl-desc">广播魔术包唤醒 cc:28:aa:4f:bd:26</span>
+                            <span>网络唤醒 (Wake-on-LAN)</span>
+                            <span class="ctrl-desc">填写目标主机 MAC（也可在 config.wol_mac 预设）</span>
                         </div>
-                        <button class="btn btn-primary" onclick="triggerWoL()">⚡ 一键唤醒 PC</button>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <input type="text" id="wol-mac-input" value="" placeholder="aa:bb:cc:dd:ee:ff" style="width: 150px; font-family: var(--font-mono);">
+                            <button class="btn btn-primary" onclick="triggerWoL()">⚡ 唤醒</button>
+                        </div>
                     </div>
                     <div class="ctrl-row">
                         <div class="ctrl-label">
                             <span>DNS 缓存一键刷新</span>
-                            <span class="ctrl-desc">重置 Android 机会主义 DNS 状态</span>
+                            <span class="ctrl-desc">重置 Android 网卡 DNS 解析缓存</span>
                         </div>
                         <button class="btn" onclick="flushDNS()">🧹 刷新 DNS</button>
                     </div>
@@ -1685,7 +1796,7 @@
             </div>
         </div>
 
-        <!-- ==================== Tab 8: Screen Mirror & Control ==================== -->
+        <!-- ==================== Tab 9: Screen Mirror & Control ==================== -->
         <div id="tab-screen" class="tab-content">
             <div class="screen-layout">
                 <div class="phone-container">
@@ -1695,7 +1806,7 @@
                             <canvas id="screen-canvas" width="400" height="888"></canvas>
                             <div class="phone-status-overlay" id="screen-status-overlay">
                                 <span class="pulse-dot"></span>
-                                <span id="screen-fps-text">3.0 FPS</span>
+                                <span id="screen-fps-text">-- FPS</span>
                             </div>
                             <div id="touch-layer" style="position: absolute; inset: 0; pointer-events: none;"></div>
                         </div>
@@ -1706,33 +1817,30 @@
                         </div>
                     </div>
                     <div style="font-size: 11px; color: var(--text-muted); display: flex; gap: 10px;">
-                        <span>📐 1080×2400 AMOLED</span>
+                        <span id="screen-res-text">📐 分辨率: --</span>
                         <span>🖱️ 鼠标点击 / 拖拽即时映射</span>
                     </div>
                 </div>
 
                 <div style="flex: 1; min-width: 320px; max-width: 550px; display: flex; flex-direction: column; gap: 14px;">
-                    <!-- 1fps 物理限制与 60fps 满血方案提示 -->
                     <div class="card" style="border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.08); padding: 12px 14px;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--accent-amber); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
                             ⚠️ 网页投屏 1~3 FPS 原理与满血 60 FPS 极速串流指引
                         </div>
                         <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
-                            当前网页投屏采用 <b>Android 原生 screencap 截图转码</b>，免客户端即可在任何网页应急点按。但因手机 CPU 单帧截取（1080×2400）需耗时 600ms，物理帧率上限约 <b>1~3 FPS</b>。<br>
-                            🎮 <b>若要 60 FPS 满血零延迟（玩游戏、刷视频、快速操作）：</b><br>
-                            本机已全天候开启网络 ADB（端口 5555），电脑直接打开已安装的 <b>Escrcpy</b> 或在 PowerShell 运行下方命令：
-                            <div style="margin-top: 6px; background: rgba(0,0,0,0.6); padding: 8px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-green); display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);">
-                                <span>scrcpy -s 本机IP:5555 --max-fps=60 -b 16M</span>
-                                <button class="btn btn-sm btn-primary" onclick="copyToClipboard('scrcpy -s 本机IP:5555 --max-fps=60 -b 16M')">📋 复制</button>
+                            当前网页投屏采用 <b>Android 原生 screencap 截图帧</b>，免客户端即可应急点击。受限于 CPU 截屏耗时，帧率约 <b>1~3 FPS</b>。<br>
+                            🎮 <b>若要 60 FPS 低延迟操控（已开启网络 ADB 5555 时）：</b>
+                            <div style="margin-top: 6px; background: rgba(0,0,0,0.5); padding: 8px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-green); display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);">
+                                <span id="scrcpy-cmd-text">scrcpy -s 127.0.0.1:5555 --max-fps=60 -b 16M</span>
+                                <button class="btn btn-sm btn-primary" onclick="copyScrcpyCmd()">📋 复制</button>
                             </div>
-                            <span style="color: var(--text-muted); font-size: 11px;">（走高通硬件 H.264 编码 + 电脑显卡 GPU 解码，延迟 &lt; 15ms，真正拉满 60 帧！）</span>
                         </div>
                     </div>
 
                     <div class="card">
                         <div class="card-header">
                             <div class="card-title">🎮 投屏控制台 (Web 轻量监控)</div>
-                            <span class="badge-online" id="badge-stream-state">待命</span>
+                            <span class="badge-offline" id="badge-stream-state">待命</span>
                         </div>
                         <div class="ctrl-row">
                             <div class="ctrl-label">
@@ -1755,20 +1863,6 @@
                         </div>
                     </div>
 
-                    <div class="card" style="border: 1px solid rgba(6, 182, 212, 0.35); background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(139, 92, 246, 0.05));">
-                        <div class="card-header">
-                            <div class="card-title" style="color: var(--accent-cyan);">🚀 满血 60 FPS 原生 Scrcpy / Escrcpy 直通</div>
-                            <span class="badge-online">免配直达已就绪</span>
-                        </div>
-                        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
-                            <div>连上热点后，打开电脑 <b>Escrcpy</b> 客户端或在 PowerShell 执行：</div>
-                            <div style="margin-top: 6px; background: rgba(0,0,0,0.6); padding: 8px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-green); border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
-                                <span>scrcpy -s 本机IP:5555 --max-fps=60 -b 16M</span>
-                                <button class="btn btn-sm btn-primary" onclick="copyToClipboard('scrcpy -s 本机IP:5555 --max-fps=60 -b 16M')">📋 复制</button>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="card">
                         <div class="card-header">
                             <div class="card-title">⌨️ 远程键盘文本输入</div>
@@ -1782,7 +1876,7 @@
             </div>
         </div>
 
-        <!-- ==================== Tab 9: System Logs ==================== -->
+        <!-- ==================== Tab 10: System Logs ==================== -->
         <div id="tab-logs" class="tab-content">
             <div class="card">
                 <div class="card-header">
@@ -1794,7 +1888,7 @@
                             <option value="webui">CyberGate WebUI 日志</option>
                             <option value="webdav">WebDAV 网盘日志</option>
                             <option value="keeper">网关底座看护日志 (keeper)</option>
-                            <option value="boxguard">透明代理守护日志 (box-guard)</option>
+                            <option value="boxguard">热点/代理守护日志 (guard)</option>
                             <option value="mihomo">代理核心日志 (mihomo)</option>
                         </select>
                         <input type="text" id="log-filter" placeholder="搜索关键字..." style="width: 130px;" oninput="filterLogs()">
@@ -1805,7 +1899,7 @@
             </div>
         </div>
 
-        <!-- ==================== Tab 10: Root Terminal ==================== -->
+        <!-- ==================== Tab 11: Root Terminal ==================== -->
         <div id="tab-terminal" class="tab-content">
             <div class="card">
                 <div class="card-header">
@@ -1821,7 +1915,8 @@
                     <button class="btn btn-sm" onclick="runQuickCmd('ip neigh; cat /proc/net/arp')">已连设备</button>
                     <button class="btn btn-sm" onclick="runQuickCmd('sync; echo 3 > /proc/sys/vm/drop_caches; echo Cache Cleared')">清理缓存</button>
                 </div>
-                <div class="terminal-box" id="term-output" style="height: 340px;">CyberGate Root Terminal Ready.\nType a command below and press Enter.</div>
+                <div class="terminal-box" id="term-output" style="height: 340px;">CyberGate Root Terminal Ready.
+Type a command below and press Enter.</div>
                 <div style="display: flex; gap: 8px; margin-top: 10px;">
                     <span style="color: var(--accent-cyan); font-family: var(--font-mono); line-height: 32px; font-weight: bold;">#</span>
                     <input type="text" id="term-input" placeholder="输入 Linux / Android Root 命令 (按 Enter 执行)..." style="flex: 1; font-family: var(--font-mono);" onkeydown="if(event.key==='Enter') executeTerminalCmd()">
@@ -1830,14 +1925,22 @@
             </div>
         </div>
 
-        <!-- 2026-10-15: 代理面板嵌入 Tab（iframe 承载 mihomo dashboard，经 /proxypanel 反代同源访问） -->
+        <!-- ==================== Tab 12: Proxypanel ==================== -->
         <div id="tab-proxypanel" class="tab-content">
-            <div style="height: calc(100vh - 190px); display: flex; flex-direction: column; border: 1px solid var(--border-color, #333); border-radius: 12px; overflow: hidden;">
-                <div style="padding: 8px 14px; background: rgba(0,0,0,0.35); display: flex; align-items: center; gap: 10px;">
-                    <span style="color: var(--accent-cyan); font-weight: bold; font-family: var(--font-mono);">🛡️ Mihomo 代理控制面板</span>
-                    <span style="color: #888; font-size: 12px; font-family: var(--font-mono);">后端: 127.0.0.1:9090 (同源反代) · 节点/分流/连接全功能</span>
+            <div style="height: calc(100vh - 190px); display: flex; flex-direction: column; border: 1px solid var(--border-card); border-radius: 12px; overflow: hidden;">
+                <div style="padding: 8px 14px; background: var(--bg-header); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: var(--accent-cyan); font-weight: bold; font-family: var(--font-mono);">🛡️ Mihomo 代理控制面板</span>
+                        <span style="color: #888; font-size: 12px; font-family: var(--font-mono);" id="proxypanel-status">后端探活中...</span>
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="loadProxyPanel(true)">🔄 重试加载</button>
                 </div>
-                <iframe id="proxypanel-frame" src="/proxypanel/ui/" style="flex: 1; width: 100%; border: 0; background: #0d1117;"></iframe>
+                <div id="proxypanel-fallback" style="display: none; padding: 24px; text-align: center; background: var(--bg-card); color: var(--text-secondary);">
+                    <div style="font-size: 15px; font-weight: 700; color: var(--accent-amber); margin-bottom: 8px;">⚠️ 无法连接本地代理控制面板</div>
+                    <div id="proxypanel-fallback-msg" style="font-size: 12px; color: var(--text-muted); max-width: 520px; margin: 0 auto 16px; line-height: 1.6;">未检测到本机的 Clash/Mihomo External-Controller 服务。若未配置透明代理或不需要分流，可忽略此面板。</div>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="loadProxyPanel(true)">🔄 重新探测</button>
+                </div>
+                <iframe id="proxypanel-frame" src="about:blank" style="flex: 1; width: 100%; border: 0; background: #0d1117;"></iframe>
             </div>
         </div>
 
@@ -1850,26 +1953,23 @@
                         <span class="footer-ver">v2.3 Full-Stack</span>
                     </div>
                     <div class="footer-desc">
-                        Android 蜂窝网关 · 7×24h 稳定千兆蜂窝网关系统
+                        Android Root 蜂窝网关控制台 · 纯标准库轻量引擎
                     </div>
                 </div>
                 <div class="footer-actions">
-                    <a href="/docs" target="_blank" class="footer-btn primary" title="在新标签页打开极客使用全书">
-                        <span>📖 极客使用文档与排障全书 (点击跳转) ↗</span>
+                    <a href="/docs" target="_blank" class="footer-btn primary" title="在新标签页打开使用手册">
+                        <span>📖 使用文档与排障手册 ↗</span>
                     </a>
                     <button type="button" class="footer-btn" onclick="openDocModal()" title="在当前网页内弹出快速查阅手册">
                         <span>🔍 快速查阅弹窗</span>
                     </button>
-                    <a href="http://192.168.1.1" target="_blank" class="footer-btn" title="访问上游路由器后台">
-                        <span>🌐 上游路由器 ↗</span>
-                    </a>
-                    <a href="http://&lt;网关&gt;:58080" target="_blank" class="footer-btn" title="访问手机内部存储全速 WebDAV 网盘">
+                    <a id="footer-webdav-link" href="#" target="_blank" class="footer-btn" title="访问手机内部存储 WebDAV 网盘">
                         <span>💾 内部存储网盘 ↗</span>
                     </a>
                 </div>
             </div>
             <div class="footer-bottom-info">
-                Android 手机 (root) · 物理有线以太网直通 · 网络 ADB (5555) 免开 Wi-Fi · 硬件旁路供电保护运行中
+                CyberGate WebUI · 开源跨机型适配版 · 运行状态均以设备实时回读为准
             </div>
         </footer>
 
@@ -1890,42 +1990,45 @@
                 </div>
             </div>
             <iframe id="doc-modal-frame" class="doc-modal-iframe" src="about:blank"></iframe>
+        </div>
+    </div>
+
     <!-- Battery & Power Details Modal -->
     <div id="modal-battery" class="doc-modal-overlay" onclick="if(event.target===this) closeBatteryModal()">
         <div class="doc-modal-content" style="max-width: 580px; height: auto; max-height: 88vh; overflow-y: auto; padding: 22px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
-                <div style="font-size: 17px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+                <div style="font-size: 17px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                     <span>🔋</span> 电池健康与智能旁路供电管理
                 </div>
-                <button type="button" class="btn btn-sm" onclick="closeBatteryModal()" style="background: rgba(255,255,255,0.1); border: none; font-size: 16px; padding: 4px 10px; cursor: pointer; color: #94a3b8; border-radius: 8px;">✕</button>
+                <button type="button" class="btn btn-sm" onclick="closeBatteryModal()" style="font-size: 16px; padding: 4px 10px;">✕</button>
             </div>
-            
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px;">
-                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;">
-                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">⚡ 实时电量 / 状态</div>
-                    <div id="modal-batt-cap" style="font-size: 26px; font-weight: 700; color: #38bdf8;">--%</div>
-                    <div id="modal-batt-status-text" style="font-size: 12px; color: #34d399; margin-top: 4px; font-weight: 600;">获取中...</div>
+                <div style="background: var(--bg-card-inner); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px;">
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">⚡ 实时电量 / 状态</div>
+                    <div id="modal-batt-cap" style="font-size: 26px; font-weight: 700; color: var(--accent-cyan);">--%</div>
+                    <div id="modal-batt-status-text" style="font-size: 12px; color: var(--accent-green); margin-top: 4px; font-weight: 600;">获取中...</div>
                 </div>
-                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;">
-                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">🌡️ 电池温度 / 安全状态</div>
-                    <div id="modal-batt-temp" style="font-size: 26px; font-weight: 700; color: #10b981;">-- °C</div>
-                    <div id="modal-batt-temp-sub" style="font-size: 12px; color: #94a3b8; margin-top: 4px;">温控正常 · 防鼓包保护中</div>
+                <div style="background: var(--bg-card-inner); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px;">
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">🌡️ 电池温度</div>
+                    <div id="modal-batt-temp" style="font-size: 26px; font-weight: 700; color: var(--accent-green);">-- °C</div>
+                    <div id="modal-batt-temp-sub" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">实时温度读取</div>
                 </div>
-                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;">
-                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">🔌 实时供电功率</div>
-                    <div id="modal-batt-power" style="font-size: 20px; font-weight: 700; color: #f59e0b;">-- W</div>
-                    <div id="modal-batt-current" style="font-size: 12px; color: #94a3b8; margin-top: 4px;">电流: -- mA</div>
+                <div style="background: var(--bg-card-inner); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px;">
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">🔌 实时供电功率</div>
+                    <div id="modal-batt-power" style="font-size: 20px; font-weight: 700; color: var(--accent-amber);">-- W</div>
+                    <div id="modal-batt-current" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">实时电流: -- mA</div>
                 </div>
-                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;">
-                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">⚡ 电池电压 / 健康度</div>
-                    <div id="modal-batt-volt" style="font-size: 20px; font-weight: 700; color: #a78bfa;">-- V</div>
-                    <div id="modal-batt-health" style="font-size: 12px; color: #94a3b8; margin-top: 4px;">健康状态: Good (优良)</div>
+                <div style="background: var(--bg-card-inner); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px;">
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">⚡ 电池电压 / 健康度</div>
+                    <div id="modal-batt-volt" style="font-size: 20px; font-weight: 700; color: var(--accent-purple);">-- V</div>
+                    <div id="modal-batt-health" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">健康状态: --</div>
                 </div>
             </div>
 
-            <div style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: 12px; padding: 14px; font-size: 12px; line-height: 1.6; color: #bae6fd; margin-bottom: 18px;">
-                💡 <b>7×24h 智能旁路供电防护说明</b>：<br>
-                系统处于以太网拓展坞或充电器供电时，自动启用<b>硬件级旁路直供 (Bypass Direct Power)</b>。电源直接供给高通骁龙 870 芯片与 5G 基带工作，停止对锂电池高倍率持续浮充，杜绝高温鼓包与电池寿命衰减。
+            <div style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: 12px; padding: 14px; font-size: 12px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 18px;">
+                💡 <b>7×24h 旁路供电说明</b>：<br>
+                若设备启用了硬件级旁路供电（或 ACC / input_suspend），外部电源直接供给主板与基带，可减少长期插电对锂电池的浮充损耗。
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px;">
@@ -1938,6 +2041,35 @@
     <div id="toast"></div>
 
     <script>
+        // Shared Value / Escaping Helpers
+        function isValidVal(v) {
+            return v !== null && v !== undefined && v !== '' && v !== 'N/A' && v !== '--';
+        }
+
+        function fmtVal(v, suffix = '', fallback = 'N/A') {
+            return isValidVal(v) ? `${v}${suffix}` : fallback;
+        }
+
+        function escHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function escJsAttr(str) {
+            return String(str ?? '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '&quot;')
+                .replace(/\r/g, '')
+                .replace(/\n/g, ' ')
+                .replace(/</g, '\\x3c')
+                .replace(/>/g, '\\x3e');
+        }
+
         // State & Optimistic UI Toggle Locks (Prevents Toggle Bouncing)
         const toggle_locks = {};
 
@@ -1953,24 +2085,48 @@
         function openBatteryModal() {
             const m = document.getElementById('modal-battery');
             if (!m) return;
-            const b = window.latestBatteryData || {};
-            const icon = b.status_icon || '🔋';
-            const text = b.status_text || b.status || '正常';
-            const cap = b.capacity !== undefined ? b.capacity : '--';
-            const temp = b.temp !== undefined ? b.temp : '--';
-            const pwr = b.power_w !== undefined ? b.power_w : '--';
-            const volt = b.voltage_v !== undefined ? b.voltage_v : '--';
-            const cur = b.current_ma !== undefined ? b.current_ma : '--';
+            const b = window.latestBatteryData;
+            if (!b || b.error) {
+                document.getElementById('modal-batt-cap').innerText = 'N/A';
+                document.getElementById('modal-batt-status-text').innerText = b && b.error ? `⚠️ 读取失败: ${b.error}` : 'N/A';
+                document.getElementById('modal-batt-temp').innerText = 'N/A';
+                document.getElementById('modal-batt-temp-sub').innerText = 'N/A';
+                document.getElementById('modal-batt-power').innerText = 'N/A';
+                document.getElementById('modal-batt-current').innerText = '实时电流: N/A';
+                document.getElementById('modal-batt-volt').innerText = 'N/A';
+                const hEl = document.getElementById('modal-batt-health');
+                if (hEl) hEl.innerText = '健康状态: N/A';
+                m.style.display = 'flex';
+                return;
+            }
+            const icon = isValidVal(b.status_icon) ? b.status_icon : '🔋';
+            const text = isValidVal(b.status_text) ? b.status_text : fmtVal(b.status);
+            const cap = isValidVal(b.capacity) ? `${b.capacity}%` : 'N/A';
+            const temp = isValidVal(b.temp) ? `${b.temp} °C` : 'N/A';
+            const pwr = isValidVal(b.power_w) ? `${b.power_w} W` : 'N/A';
+            const cur = isValidVal(b.current_ma) ? `${b.current_ma} mA` : 'N/A';
 
-            document.getElementById('modal-batt-cap').innerText = `${cap}%`;
+            document.getElementById('modal-batt-cap').innerText = cap;
             document.getElementById('modal-batt-status-text').innerText = `${icon} ${text}`;
-            document.getElementById('modal-batt-temp').innerText = `${temp} °C`;
-            document.getElementById('modal-batt-power').innerText = `${pwr} W`;
-            document.getElementById('modal-batt-current').innerText = `实时电流: ${cur} mA`;
-            document.getElementById('modal-batt-volt').innerText = `${volt} V (${Math.round(volt*1000)} mV)`;
+            document.getElementById('modal-batt-temp').innerText = temp;
+            const tempSubEl = document.getElementById('modal-batt-temp-sub');
+            if (tempSubEl) {
+                tempSubEl.innerText = typeof b.temp === 'number'
+                    ? (b.temp >= 45 ? '⚠️ 电池温度偏高，请注意散热' : '温控正常')
+                    : 'N/A';
+            }
+            document.getElementById('modal-batt-power').innerText = pwr;
+            document.getElementById('modal-batt-current').innerText = `实时电流: ${cur}`;
+            document.getElementById('modal-batt-volt').innerText = typeof b.voltage_v === 'number'
+                ? `${b.voltage_v} V (${Math.round(b.voltage_v * 1000)} mV)`
+                : fmtVal(b.voltage_v, ' V');
             const hEl = document.getElementById('modal-batt-health');
-            if (hEl) hEl.innerText = `健康状态: ${b.health || 'Good (优良)'} · ${b.health_pct || 87.5}% (满充: ${b.charge_full_mah || 3937} / 设计: ${b.design_mah || 4500} mAh)`;
-            
+            const hPct = fmtVal(b.health_pct, '%');
+            const cFull = fmtVal(b.charge_full_mah);
+            const dMah = fmtVal(b.design_mah);
+            const hText = fmtVal(b.health);
+            if (hEl) hEl.innerText = `健康状态: ${hText} · ${hPct} (满充: ${cFull} / 设计: ${dMah} mAh)`;
+
             m.style.display = 'flex';
         }
 
@@ -1994,6 +2150,38 @@
         function closeDocModal() {
             const m = document.getElementById('doc-modal');
             if (m) m.style.display = 'none';
+        }
+
+        async function loadProxyPanel(force = false) {
+            const frame = document.getElementById('proxypanel-frame');
+            const fallback = document.getElementById('proxypanel-fallback');
+            const fallbackMsg = document.getElementById('proxypanel-fallback-msg');
+            const statusEl = document.getElementById('proxypanel-status');
+            if (!frame) return;
+            const targetSrc = frame.getAttribute('data-src') || '/proxypanel/ui/';
+            try {
+                const res = await fetch('/proxypanel/version', { cache: 'no-store' });
+                if (!res.ok) {
+                    const errTxt = await res.text().catch(() => '');
+                    throw new Error(`HTTP ${res.status}${errTxt ? ': ' + errTxt.slice(0, 120) : ''}`);
+                }
+                let verLabel = '';
+                try {
+                    const verJson = await res.json();
+                    if (verJson && verJson.version) verLabel = ` · 核心 ${verJson.version}`;
+                } catch (_) {}
+                if (statusEl) statusEl.innerText = `后端: 127.0.0.1:9090 (同源反代)${verLabel}`;
+                if (fallback) fallback.style.display = 'none';
+                frame.style.display = 'block';
+                if (force || frame.src === 'about:blank' || !frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank') {
+                    frame.src = targetSrc;
+                }
+            } catch (e) {
+                if (statusEl) statusEl.innerText = '后端: 127.0.0.1:9090 (连接异常)';
+                frame.style.display = 'none';
+                if (fallback) fallback.style.display = 'flex';
+                if (fallbackMsg) fallbackMsg.innerText = `无法连接到 Mihomo 控制接口 (${e.message})，请确认 mihomo 服务已启动。`;
+            }
         }
 
         // Tab Switching
@@ -2025,6 +2213,7 @@
             if (tabId === 'hotspot') fetchHotspotConfig();
             if (tabId === 'clients') fetchClients();
             if (tabId === 'logs') fetchSystemLogs();
+            if (tabId === 'proxypanel') loadProxyPanel(false);
             if (tabId === 'screen') {
                 if (!screenStreaming) toggleScreenStream();
                 else fetchScreenFrame();
@@ -2444,32 +2633,33 @@
         async function pollTrafficHistory() {
             try {
                 const res = await fetch('/api/traffic/history');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 trafficHistoryData = data;
 
                 if (data.today) {
                     const elTot = document.getElementById('stat-today-total');
-                    if (elTot) elTot.innerText = data.today.total_human || '0.0 MB';
+                    if (elTot) elTot.innerText = data.today.total_human || '0 B';
                     const elSub = document.getElementById('stat-today-sub');
                     if (elSub) elSub.innerText = `↓ ${data.today.rx_human || '0 B'} · ↑ ${data.today.tx_human || '0 B'}`;
                 }
                 if (data.this_week) {
                     const elTot = document.getElementById('stat-week-total');
-                    if (elTot) elTot.innerText = data.this_week.total_human || '0.0 MB';
+                    if (elTot) elTot.innerText = data.this_week.total_human || '0 B';
                     const elSub = document.getElementById('stat-week-sub');
-                    const yText = data.yesterday ? data.yesterday.total_human : '0.0 MB';
+                    const yText = data.yesterday ? data.yesterday.total_human : 'N/A';
                     if (elSub) elSub.innerText = `昨日用量: ${yText}`;
                 }
                 if (data.this_month) {
                     const elTot = document.getElementById('stat-month-total');
-                    if (elTot) elTot.innerText = data.this_month.total_human || '0.0 MB';
+                    if (elTot) elTot.innerText = data.this_month.total_human || '0 B';
                     const elSub = document.getElementById('stat-month-sub');
-                    const lmText = data.last_month ? data.last_month.total_human : '0.0 MB';
+                    const lmText = data.last_month ? data.last_month.total_human : 'N/A';
                     if (elSub) elSub.innerText = `上月同期: ${lmText}`;
                 }
                 if (data.year_total) {
                     const elTot = document.getElementById('stat-year-total');
-                    if (elTot) elTot.innerText = data.year_total.total_human || '0.0 GB';
+                    if (elTot) elTot.innerText = data.year_total.total_human || '0 B';
                 }
 
                 drawHistoryChart();
@@ -2478,118 +2668,245 @@
             }
         }
 
+        function formatInterfaceIps(rawVal) {
+            if (!isValidVal(rawVal)) return '';
+            if (Array.isArray(rawVal)) {
+                return rawVal.filter(Boolean).join(', ');
+            }
+            return String(rawVal)
+                .split(/[\r\n,]+/)
+                .map(s => s.trim())
+                .filter(Boolean)
+                .join(', ');
+        }
+
+        function pickCellularIp(ifaces) {
+            if (!ifaces || typeof ifaces !== 'object') return '';
+            const preferred = ['rmnet_data2', 'rmnet_data1', 'rmnet_data3', 'rmnet_data0'];
+            for (const name of preferred) {
+                const formatted = formatInterfaceIps(ifaces[name]);
+                if (formatted) return formatted;
+            }
+            for (const [dev, val] of Object.entries(ifaces)) {
+                if ((dev.startsWith('rmnet_data') || (dev.startsWith('rmnet') && !dev.includes('mhi') && !dev.includes('ipa'))) && isValidVal(val)) {
+                    const formatted = formatInterfaceIps(val);
+                    if (formatted) return formatted;
+                }
+            }
+            return '';
+        }
+
         // Polling Data
         let totalRxMB = 0, totalTxMB = 0;
 
         async function pollStatus() {
             try {
                 const res = await fetch('/api/status');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
+                window.latestStatusData = data;
+                window.cachedConfig = data.config || {};
 
-                // Uptime
-                if (data.uptime) document.getElementById('val-uptime').innerText = data.uptime;
+                // Wallpaper & local config sync
+                if (window.cachedConfig.wallpaper_url) {
+                    if (document.body.style.backgroundImage !== `url("${window.cachedConfig.wallpaper_url}")`) {
+                        document.body.style.backgroundImage = `url("${window.cachedConfig.wallpaper_url}")`;
+                    }
+                }
+                const wolInput = document.getElementById('wol-mac-input');
+                if (wolInput && !wolInput.value && window.cachedConfig.wol_mac) {
+                    wolInput.value = window.cachedConfig.wol_mac;
+                }
+                const localDomainEl = document.getElementById('val-local-domain');
+                if (localDomainEl) {
+                    const kw = window.cachedConfig.local_domain_keyword;
+                    localDomainEl.innerText = kw ? `直达: ${kw}` : '直达: 网关IP';
+                }
+                const ovApDomainEl = document.getElementById('ov-ap-domain');
+                if (ovApDomainEl) {
+                    const kw = window.cachedConfig.local_domain_keyword;
+                    const gw = window.cachedConfig.local_gateway_ip || window.location.hostname || '127.0.0.1';
+                    ovApDomainEl.innerText = kw ? `http://${kw}/` : `http://${gw}/`;
+                }
+
+                // Dynamic WebDAV URLs
+                const curDavPort = (window.cachedConfig && window.cachedConfig.webdav_port) || 58080;
+                const curDavHost = window.location.hostname || '127.0.0.1';
+                const curDavUrl = `http://${curDavHost}:${curDavPort}/`;
+                const davLinkEl = document.getElementById('dav-open-link');
+                if (davLinkEl) davLinkEl.href = curDavUrl;
+                const davPrimaryEl = document.getElementById('dav-url-primary');
+                if (davPrimaryEl) davPrimaryEl.innerText = curDavUrl;
+                const davFooterEl = document.getElementById('footer-webdav-link');
+                if (davFooterEl) davFooterEl.href = curDavUrl;
+                const cmdWinEl = document.getElementById('cmd-win-mount');
+                if (cmdWinEl) cmdWinEl.innerText = `net use Z: ${curDavUrl}`;
+                const davMacEl = document.getElementById('dav-mac-url');
+                if (davMacEl) davMacEl.innerText = curDavUrl;
+                const davAndroidEl = document.getElementById('dav-android-url');
+                if (davAndroidEl) davAndroidEl.innerText = curDavUrl;
+
+                // Uptime & VPN IP
+                const upEl = document.getElementById('val-uptime');
+                if (upEl) upEl.innerText = fmtVal(data.uptime);
+
+                const vpnEl = document.getElementById('val-tailscale');
+                if (vpnEl) {
+                    let wgIp = '';
+                    if (isValidVal(data.vpn_ip)) {
+                        wgIp = String(data.vpn_ip).trim();
+                    } else if (data.interfaces && isValidVal(data.interfaces.wg0)) {
+                        wgIp = formatInterfaceIps(data.interfaces.wg0).split(',')[0].split('/')[0].trim();
+                    } else if (data.interfaces && isValidVal(data.interfaces.tailscale0)) {
+                        wgIp = formatInterfaceIps(data.interfaces.tailscale0).split(',')[0].split('/')[0].trim();
+                    }
+                    vpnEl.innerText = wgIp ? `WG: ${wgIp}` : 'WG: N/A';
+                }
 
                 // Battery & Temp & Power Management
-                if (data.battery) {
-                    const b = data.battery;
+                const b = data.battery;
+                if (b && !b.error) {
                     window.latestBatteryData = b;
                     const mBatt = document.getElementById('modal-battery');
                     if (mBatt && mBatt.style.display === 'flex') {
                         openBatteryModal();
                     }
-                    const icon = b.status_icon || '🔋';
-                    const text = b.status_text || b.status || '正常';
-                    const cap = b.capacity !== undefined ? b.capacity : 0;
-                    const temp = b.temp || 0;
-                    const pwr = b.power_w || 0;
-                    const volt = b.voltage_v || 0;
-                    const cur = b.current_ma || 0;
+                    const icon = isValidVal(b.status_icon) ? b.status_icon : '🔋';
+                    const text = isValidVal(b.status_text) ? b.status_text : fmtVal(b.status);
+                    const cap = isValidVal(b.capacity) ? `${b.capacity}%` : 'N/A';
+                    const temp = isValidVal(b.temp) ? `${b.temp}°C` : 'N/A';
+                    const pwr = isValidVal(b.power_w) ? `${b.power_w} W` : 'N/A';
+                    const volt = isValidVal(b.voltage_v) ? `${b.voltage_v} V` : 'N/A';
+                    const cur = isValidVal(b.current_ma) ? `${b.current_ma} mA` : 'N/A';
 
-                    // KPI Card Elements
                     const kpiMain = document.getElementById('kpi-batt-main');
                     if (kpiMain) {
-                        kpiMain.innerHTML = `${cap}% <span style="font-size: 13px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8;">${icon} ${text}</span>`;
+                        kpiMain.innerHTML = `${escHtml(cap)} <span style="font-size: 13px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8;" id="kpi-batt-tag">${escHtml(icon)} ${escHtml(text)}</span>`;
                     }
                     const kpiSub = document.getElementById('kpi-batt-sub');
                     if (kpiSub) {
-                        kpiSub.innerText = `温度: ${temp}°C | 功率: ${pwr} W (${volt}V)`;
+                        kpiSub.innerText = `温度: ${temp} | 功率: ${pwr} (${volt})`;
                     }
 
-                    // Detailed Card Elements in Overview
                     const ovBadge = document.getElementById('ov-batt-badge');
                     if (ovBadge) {
-                        ovBadge.innerText = `${icon} ${b.status_desc || text}`;
-                        if (b.status_badge === 'bypass') {
-                            ovBadge.className = 'badge-bypass';
-                        } else if (b.status_badge === 'charging') {
-                            ovBadge.className = 'badge-online';
-                        } else if (b.status_badge === 'full') {
-                            ovBadge.className = 'badge-online';
-                        } else {
-                            ovBadge.className = 'badge-warn';
-                        }
+                        ovBadge.innerText = `${icon} ${isValidVal(b.status_desc) ? b.status_desc : text}`;
+                        if (b.status_badge === 'bypass') ovBadge.className = 'badge-bypass';
+                        else if (b.status_badge === 'charging' || b.status_badge === 'full') ovBadge.className = 'badge-online';
+                        else ovBadge.className = 'badge-warn';
                     }
                     const ovCapText = document.getElementById('ov-batt-cap-text');
-                    if (ovCapText) ovCapText.innerText = `${cap}% · ${b.status_text || text}`;
+                    if (ovCapText) ovCapText.innerText = `${cap} · ${text}`;
 
                     const ovUsb = document.getElementById('ov-batt-usb');
-                    if (ovUsb) ovUsb.innerText = b.usb_type ? `${b.usb_type} (拓展坞供电)` : 'USB-PD 拓展坞';
+                    if (ovUsb) ovUsb.innerText = isValidVal(b.usb_type) ? b.usb_type : 'N/A';
 
                     const ovPwr = document.getElementById('ov-batt-pwr');
-                    if (ovPwr) ovPwr.innerText = `${pwr} W (实时 ${volt} V / ${cur} mA)`;
+                    if (ovPwr) ovPwr.innerText = `${pwr} (${volt} / ${cur})`;
 
                     const ovHealth = document.getElementById('ov-batt-health');
-                    if (ovHealth) ovHealth.innerText = `${b.health_pct || 87.5}% (满充: ${b.charge_full_mah || 3937} / 设计: ${b.design_mah || 4500} mAh)`;
+                    if (ovHealth) {
+                        const hPct = fmtVal(b.health_pct, '%');
+                        const cFull = fmtVal(b.charge_full_mah);
+                        const dMah = fmtVal(b.design_mah);
+                        ovHealth.innerText = `${hPct} (满充: ${cFull} / 设计: ${dMah} mAh)`;
+                    }
 
                     const ovCycles = document.getElementById('ov-batt-cycles');
-                    if (ovCycles) ovCycles.innerText = `${b.cycle_count || 0} 次`;
+                    if (ovCycles) ovCycles.innerText = isValidVal(b.cycle_count) ? `${b.cycle_count} 次` : 'N/A';
 
                     const ovTemp = document.getElementById('ov-batt-temp');
-                    if (ovTemp) ovTemp.innerText = `电芯: ${temp}°C | 充电芯片: ${b.charger_temp || temp}°C`;
+                    if (ovTemp) {
+                        const chgTemp = isValidVal(b.charger_temp) ? `${b.charger_temp}°C` : 'N/A';
+                        ovTemp.innerText = `电芯: ${temp} | 充电芯片: ${chgTemp}`;
+                    }
+                } else {
+                    window.latestBatteryData = b || { error: 'unavailable' };
+                    const kpiMain = document.getElementById('kpi-batt-main');
+                    if (kpiMain) kpiMain.innerHTML = `N/A <span style="font-size: 13px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--accent-amber);" id="kpi-batt-tag">N/A</span>`;
+                    const kpiSub = document.getElementById('kpi-batt-sub');
+                    if (kpiSub) kpiSub.innerText = '温度: N/A | 功率: N/A';
+                    const ovBadge = document.getElementById('ov-batt-badge');
+                    if (ovBadge) { ovBadge.innerText = 'N/A'; ovBadge.className = 'badge-warn'; }
+                    const ovCap = document.getElementById('ov-batt-cap-text');
+                    if (ovCap) ovCap.innerText = 'N/A';
+                    const ovUsb = document.getElementById('ov-batt-usb');
+                    if (ovUsb) ovUsb.innerText = 'N/A';
+                    const ovPwr = document.getElementById('ov-batt-pwr');
+                    if (ovPwr) ovPwr.innerText = 'N/A';
+                    const ovHealth = document.getElementById('ov-batt-health');
+                    if (ovHealth) ovHealth.innerText = 'N/A';
+                    const ovCycles = document.getElementById('ov-batt-cycles');
+                    if (ovCycles) ovCycles.innerText = 'N/A';
+                    const ovTemp = document.getElementById('ov-batt-temp');
+                    if (ovTemp) ovTemp.innerText = 'N/A';
                 }
 
-                // CPU & RAM
-                if (data.loadavg) document.getElementById('kpi-cpu').innerText = data.loadavg;
-                if (data.memory) {
-                    const ramP = data.memory.ram_percent || 0;
-                    document.getElementById('kpi-ram').innerText = `RAM: ${ramP}% | ZRAM 8G`;
+                // CPU & RAM / ZRAM
+                const kpiCpu = document.getElementById('kpi-cpu');
+                if (kpiCpu) kpiCpu.innerText = fmtVal(data.loadavg);
+                const kpiRam = document.getElementById('kpi-ram');
+                if (kpiRam) {
+                    const m = data.memory;
+                    if (m && !m.error) {
+                        const ramText = isValidVal(m.ram_percent) ? `${m.ram_percent}%` : 'N/A';
+                        let zramText = 'N/A';
+                        if (typeof m.zram_total_mb === 'number') {
+                            const zGb = m.zram_total_mb > 0 ? `${(m.zram_total_mb / 1024).toFixed(1).replace(/\.0$/, '')}G` : '0G';
+                            if (typeof m.swapfile_total_mb === 'number' && m.swapfile_total_mb > 0) {
+                                const sGb = `${(m.swapfile_total_mb / 1024).toFixed(1).replace(/\.0$/, '')}G`;
+                                zramText = `${zGb}+${sGb} Swap`;
+                            } else {
+                                zramText = zGb;
+                            }
+                        } else if (typeof m.total_swap_mb === 'number') {
+                            zramText = m.total_swap_mb > 0 ? `${(m.total_swap_mb / 1024).toFixed(1).replace(/\.0$/, '')}G` : '0G';
+                        }
+                        kpiRam.innerText = `RAM: ${ramText} | ZRAM ${zramText}`;
+                    } else {
+                        kpiRam.innerText = 'RAM: N/A | ZRAM N/A';
+                    }
                 }
 
                 // Storage
-                if (data.storage) {
-                    document.getElementById('kpi-storage').innerText = `${data.storage.free_gb} GB 可用`;
-                    document.getElementById('kpi-storage-sub').innerText = `已用: ${data.storage.percent}% (/sdcard)`;
+                const st = data.storage;
+                if (st && !st.error && isValidVal(st.free_gb)) {
+                    document.getElementById('kpi-storage').innerText = `${st.free_gb} GB 可用`;
+                    document.getElementById('kpi-storage-sub').innerText = `已用: ${fmtVal(st.percent, '%')} (/sdcard)`;
                     const dText = document.getElementById('dav-storage-text');
-                    if (dText) dText.innerText = `${data.storage.free_gb} GB 可用 / ${data.storage.total_gb} GB`;
+                    if (dText) dText.innerText = `${st.free_gb} GB 可用 / ${fmtVal(st.total_gb, ' GB')}`;
                     const dBar = document.getElementById('dav-storage-bar');
-                    if (dBar) dBar.style.width = `${data.storage.percent}%`;
+                    if (dBar && typeof st.percent === 'number') dBar.style.width = `${Math.min(100, Math.max(0, st.percent))}%`;
+                } else {
+                    document.getElementById('kpi-storage').innerText = 'N/A';
+                    document.getElementById('kpi-storage-sub').innerText = '已用: N/A (/sdcard)';
+                    const dText = document.getElementById('dav-storage-text');
+                    if (dText) dText.innerText = 'N/A';
+                    const dBar = document.getElementById('dav-storage-bar');
+                    if (dBar) dBar.style.width = '0%';
                 }
 
                 // Interfaces
-                if (data.interfaces) {
-                    const ethIp = data.interfaces.eth0 || '未分配';
-                    const rmnetIp = data.interfaces.rmnet_data2 || data.interfaces.rmnet_data1 || data.interfaces.rmnet_data3 || data.interfaces.rmnet_data0 || '未连接';
-                    const wlanIp = data.interfaces.wlan1 || data.interfaces.wlan0 || '192.168.43.1';
+                let ethIp = '', rmnetIp = '', wlanIp = '';
+                if (data.interfaces && !data.interfaces.error) {
+                    ethIp = formatInterfaceIps(data.interfaces.eth0);
+                    rmnetIp = pickCellularIp(data.interfaces);
+                    wlanIp = formatInterfaceIps(data.interfaces.wlan1) || formatInterfaceIps(data.interfaces.wlan0);
 
-                    document.getElementById('ov-eth-ip').innerText = ethIp;
-                    document.getElementById('ov-cell-ip').innerText = rmnetIp;
-                    document.getElementById('ov-ap-ip').innerText = wlanIp;
+                    document.getElementById('ov-eth-ip').innerText = ethIp || '未分配';
+                    document.getElementById('ov-cell-ip').innerText = rmnetIp || '未连接';
+                    document.getElementById('ov-ap-ip').innerText = wlanIp || '未开启';
+                } else {
+                    document.getElementById('ov-eth-ip').innerText = 'N/A';
+                    document.getElementById('ov-cell-ip').innerText = 'N/A';
+                    document.getElementById('ov-ap-ip').innerText = 'N/A';
                 }
 
-                // Toggles Sync (with optimistic lock check!)
-                if (data.toggles) {
-                    const t = data.toggles;
-                    if (!isToggleLocked('watchdog') && document.getElementById('chk-watchdog')) {
-                        document.getElementById('chk-watchdog').checked = !!t.watchdog;
-                    }
+                // Toggles Sync & Overview Badges
+                const t = (data.toggles && !data.toggles.error) ? data.toggles : null;
+                if (t) {
                     if (!isToggleLocked('eth_tether') && document.getElementById('chk-eth-tether')) {
                         document.getElementById('chk-eth-tether').checked = !!t.eth_tethered;
-                    }
-                    if (!isToggleLocked('qos_500b') && document.getElementById('chk-qos-500b')) {
-                        document.getElementById('chk-qos-500b').checked = !!t.qos_500b;
-                    }
-                    if (!isToggleLocked('qos_cs2') && document.getElementById('chk-qos-cs2')) {
-                        document.getElementById('chk-qos-cs2').checked = !!t.qos_cs2;
                     }
                     if (!isToggleLocked('wifi_master') && document.getElementById('chk-wifi-master')) {
                         document.getElementById('chk-wifi-master').checked = !!t.wifi_master;
@@ -2603,31 +2920,111 @@
                     if (!isToggleLocked('hotspot') && document.getElementById('chk-hotspot-active')) {
                         document.getElementById('chk-hotspot-active').checked = !!t.hotspot_active;
                     }
+
+                    const ethCarrierEl = document.getElementById('ov-eth-carrier');
+                    if (ethCarrierEl) {
+                        ethCarrierEl.innerText = t.eth_carrier === true ? '线缆已连接' : (t.eth_carrier === false ? '未检测到线缆' : 'N/A');
+                    }
+                    const ethBadgeEl = document.getElementById('ov-eth-badge');
+                    if (ethBadgeEl) {
+                        if (t.eth_tethered === true || (t.eth_carrier === true && ethIp)) {
+                            ethBadgeEl.innerText = '以太网活跃';
+                            ethBadgeEl.className = 'badge-online';
+                        } else if (t.eth_carrier === false) {
+                            ethBadgeEl.innerText = '未插线';
+                            ethBadgeEl.className = 'badge-warn';
+                        } else {
+                            ethBadgeEl.innerText = t.eth_tethered === false ? '未共享' : 'N/A';
+                            ethBadgeEl.className = 'badge-warn';
+                        }
+                    }
+
+                    const apBadgeEl = document.getElementById('ov-ap-badge');
+                    if (apBadgeEl) {
+                        if (t.hotspot_active === true) {
+                            apBadgeEl.innerText = '热点运行中';
+                            apBadgeEl.className = 'badge-online';
+                        } else if (t.hotspot_active === false) {
+                            apBadgeEl.innerText = '热点已关闭';
+                            apBadgeEl.className = 'badge-warn';
+                        } else {
+                            apBadgeEl.innerText = 'N/A';
+                            apBadgeEl.className = 'badge-warn';
+                        }
+                    }
+
+                    const davBadgeEl = document.getElementById('dav-status-badge');
+                    if (davBadgeEl) {
+                        if (t.webdav_active === true) {
+                            const davPort = (window.cachedConfig && window.cachedConfig.webdav_port) || 58080;
+                            davBadgeEl.innerText = `🟢 运行中 (${davPort})`;
+                            davBadgeEl.className = 'badge-online';
+                        } else if (t.webdav_active === false) {
+                            davBadgeEl.innerText = '⚪ 未运行';
+                            davBadgeEl.className = 'badge-warn';
+                        } else {
+                            davBadgeEl.innerText = 'N/A';
+                            davBadgeEl.className = 'badge-warn';
+                        }
+                    }
+
+                    const cpeStateEl = document.getElementById('status-cpe-state');
+                    if (cpeStateEl) {
+                        const hasWan = !!rmnetIp;
+                        const hasDownlink = !!(t.eth_tethered || (t.eth_carrier && ethIp) || t.hotspot_active);
+                        if (hasWan && hasDownlink) {
+                            cpeStateEl.innerText = '蜂窝与下行正常';
+                            cpeStateEl.className = 'badge-online';
+                        } else if (hasWan) {
+                            cpeStateEl.innerText = '仅蜂窝在线';
+                            cpeStateEl.className = 'badge-online';
+                        } else {
+                            cpeStateEl.innerText = '蜂窝未连接';
+                            cpeStateEl.className = 'badge-warn';
+                        }
+                    }
+                } else {
+                    const cpeStateEl = document.getElementById('status-cpe-state');
+                    if (cpeStateEl) { cpeStateEl.innerText = '状态未知'; cpeStateEl.className = 'badge-warn'; }
                 }
             } catch (e) {
                 console.error("pollStatus error", e);
+                const cpeStateEl = document.getElementById('status-cpe-state');
+                if (cpeStateEl) { cpeStateEl.innerText = '后端失联'; cpeStateEl.className = 'badge-warn'; }
             }
         }
 
         async function pollTraffic() {
             try {
                 const res = await fetch('/api/traffic');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 let rxMbps = 0, txMbps = 0;
+                let rmnetRxTotal = 0, rmnetTxTotal = 0;
+                let hasRmnet = false;
 
-                // Aggregate cellular WAN (rmnet_data*) speeds without double-counting
+                // Aggregate cellular WAN (rmnet_data*) speeds & totals across active bearers
                 for (const [dev, s] of Object.entries(data)) {
                     if (dev.startsWith('rmnet_data') || (dev.startsWith('rmnet') && !dev.includes('mhi') && !dev.includes('ipa'))) {
+                        hasRmnet = true;
                         rxMbps += s.rx_speed_mbps || 0;
                         txMbps += s.tx_speed_mbps || 0;
-                        totalRxMB = Math.max(totalRxMB, s.rx_total_mb || 0);
-                        totalTxMB = Math.max(totalTxMB, s.tx_total_mb || 0);
+                        rmnetRxTotal += s.rx_total_mb || 0;
+                        rmnetTxTotal += s.tx_total_mb || 0;
                     }
                 }
-                // Fallback to ethernet if mobile baseband counters are bridged
+                if (hasRmnet && (rmnetRxTotal > 0 || rmnetTxTotal > 0)) {
+                    totalRxMB = Number(rmnetRxTotal.toFixed(1));
+                    totalTxMB = Number(rmnetTxTotal.toFixed(1));
+                }
+                // Fallback to ethernet if mobile baseband counters are zero/bridged
                 if (rxMbps === 0 && txMbps === 0 && data['eth0']) {
-                    rxMbps = data['eth0'].tx_speed_mbps || 0;
-                    txMbps = data['eth0'].rx_speed_mbps || 0;
+                    rxMbps = data['eth0'].rx_speed_mbps || 0;
+                    txMbps = data['eth0'].tx_speed_mbps || 0;
+                    if (!hasRmnet || (totalRxMB === 0 && totalTxMB === 0)) {
+                        totalRxMB = data['eth0'].rx_total_mb || 0;
+                        totalTxMB = data['eth0'].tx_total_mb || 0;
+                    }
                 }
 
                 rxMbps = Number(rxMbps.toFixed(2));
@@ -2656,9 +3053,11 @@
         async function fetchCellularDeep() {
             try {
                 const res = await fetch('/api/cellular/deep');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const d = await res.json();
 
                 if (d.sim_present === false) {
+                    document.getElementById('cel-rat-badge').innerText = '未插卡';
                     document.getElementById('cel-op').innerText = '未插卡 (SIM Absent)';
                     document.getElementById('cel-plmn').innerText = '--';
                     document.getElementById('cel-band').innerText = '基带脱网待机';
@@ -2673,27 +3072,38 @@
 
                     document.getElementById('kpi-sinr').innerHTML = `-- <span style="font-size: 12px;">dB SINR</span>`;
                     document.getElementById('kpi-rsrp').innerText = `RSRP: -- (未插卡)`;
+                    document.getElementById('ov-cell-badge').innerText = '未插卡';
                     document.getElementById('ov-cell-op').innerText = `未插卡 (脱网待机)`;
+                    document.getElementById('ov-cell-apn').innerText = '--';
                     return;
                 }
 
-                document.getElementById('cel-op').innerText = d.operator || '--';
-                document.getElementById('cel-plmn').innerText = d.mcc_mnc || '--';
-                document.getElementById('cel-band').innerText = d.band || '--';
-                document.getElementById('cel-arfcn').innerText = d.arfcn !== undefined ? d.arfcn : '--';
-                document.getElementById('cel-pci').innerText = d.pci !== undefined ? d.pci : '--';
-                document.getElementById('cel-tac').innerText = d.tac !== undefined ? d.tac : '--';
-                document.getElementById('cel-nci').innerText = d.nci !== undefined ? d.nci : '--';
-                document.getElementById('cel-rsrp').innerText = typeof d.rsrp === 'number' ? `${d.rsrp} dBm` : (d.rsrp || '--');
-                document.getElementById('cel-sinr').innerText = typeof d.sinr === 'number' ? `${d.sinr} dB` : (d.sinr || '--');
-                document.getElementById('cel-rsrq').innerText = typeof d.rsrq === 'number' ? `${d.rsrq} dB` : (d.rsrq || '--');
-                document.getElementById('cel-level').innerText = `${d.level || 0} / 4`;
+                document.getElementById('cel-rat-badge').innerText = fmtVal(d.rat);
+                document.getElementById('cel-op').innerText = fmtVal(d.operator);
+                document.getElementById('cel-plmn').innerText = fmtVal(d.mcc_mnc);
+                document.getElementById('cel-band').innerText = fmtVal(d.band);
+                document.getElementById('cel-arfcn').innerText = fmtVal(d.arfcn);
+                document.getElementById('cel-pci').innerText = fmtVal(d.pci);
+                document.getElementById('cel-tac').innerText = fmtVal(d.tac);
+                document.getElementById('cel-nci').innerText = fmtVal(d.nci);
+                document.getElementById('cel-rsrp').innerText = typeof d.rsrp === 'number' ? `${d.rsrp} dBm` : fmtVal(d.rsrp);
+                document.getElementById('cel-sinr').innerText = typeof d.sinr === 'number' ? `${d.sinr} dB` : fmtVal(d.sinr);
+                document.getElementById('cel-rsrq').innerText = typeof d.rsrq === 'number' ? `${d.rsrq} dB` : fmtVal(d.rsrq);
+                document.getElementById('cel-level').innerText = isValidVal(d.level) ? `${d.level} / 4` : 'N/A';
 
-                document.getElementById('kpi-sinr').innerHTML = `${d.sinr !== undefined ? d.sinr : '--'} <span style="font-size: 12px;">dB SINR</span>`;
-                document.getElementById('kpi-rsrp').innerText = `RSRP: ${d.rsrp !== undefined ? d.rsrp : '--'} dBm (${d.band || '--'})`;
-                document.getElementById('ov-cell-op').innerText = `${d.operator || '蜂窝网络'} (${d.band || '--'})`;
+                document.getElementById('kpi-sinr').innerHTML = `${escHtml(isValidVal(d.sinr) ? d.sinr : 'N/A')} <span style="font-size: 12px;">dB SINR</span>`;
+                document.getElementById('kpi-rsrp').innerText = `RSRP: ${typeof d.rsrp === 'number' ? d.rsrp + ' dBm' : fmtVal(d.rsrp)} (${fmtVal(d.band)})`;
+                document.getElementById('ov-cell-badge').innerText = fmtVal(d.rat);
+                document.getElementById('ov-cell-op').innerText = `${fmtVal(d.operator)} (${fmtVal(d.band)})`;
+                document.getElementById('ov-cell-apn').innerText = `${fmtVal(d.iface)} · APN: ${fmtVal(d.apn)}`;
             } catch (e) {
                 console.error("fetchCellularDeep error", e);
+                document.getElementById('kpi-sinr').innerHTML = `N/A <span style="font-size: 12px;">dB SINR</span>`;
+                document.getElementById('kpi-rsrp').innerText = 'RSRP: N/A';
+                document.getElementById('ov-cell-badge').innerText = 'N/A';
+                document.getElementById('ov-cell-op').innerText = 'N/A';
+                document.getElementById('ov-cell-apn').innerText = 'N/A';
+                document.getElementById('cel-rat-badge').innerText = 'N/A';
             }
         }
 
@@ -2701,9 +3111,10 @@
         async function fetchNearbyCells(trigger = 0) {
             const tbody = document.getElementById('cells-list-body');
             const mode = document.getElementById('sel-cell-scan-mode') ? document.getElementById('sel-cell-scan-mode').value : 'all';
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--accent-cyan); padding: 16px;">🔍 正在雷达扫描周边基站小区 (制式: ${mode})...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--accent-cyan); padding: 16px;">🔍 正在雷达扫描周边基站小区 (制式: ${escHtml(mode)})...</td></tr>`;
             try {
-                const res = await fetch(`/api/cellular/cells?mode=${mode}&trigger=${trigger}`);
+                const res = await fetch(`/api/cellular/cells?mode=${encodeURIComponent(mode)}&trigger=${encodeURIComponent(trigger)}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
 
                 // 兼容数组格式与标准对象格式
@@ -2719,7 +3130,7 @@
                                     <span>📇 当前未检测到有效 SIM 流量卡 (SIM Absent)</span>
                                 </div>
                                 <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
-                                    ${data.message || '依据 3GPP 蜂窝通信协议与高通骁龙 870 基带规范，未插入 SIM 流量卡时基带处于脱网休眠模式（仅保留紧急呼叫信道），不会上报物理小区测量数据。'}<br>
+                                    ${escHtml(data.message || '依据 3GPP 蜂窝通信协议与基带规范，未插入 SIM 流量卡时基带处于脱网休眠模式（仅保留紧急呼叫信道），不会上报物理小区测量数据。')}<br>
                                     👉 <b>插入 5G/4G 流量卡后</b>，基带将自动建立物理层频点同步，此处将实时呈现主小区及周边全部测量邻区雷达列表。
                                 </div>
                             </div>
@@ -2735,30 +3146,30 @@
 
                 let html = '';
                 list.forEach(c => {
-                    const isServing = c.registered;
-                    const ctypeTag = c.type === '5G NR' ? 
-                        `<span class="badge-online" style="font-weight: 700;">🚀 5G NR</span>` : 
-                        `<span class="pill-tag" style="color: var(--accent-purple); font-weight: 600;">📶 4G LTE</span>`;
-                    
-                    const bandTag = `<span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;">${c.band}</span>`;
-                    const statusTag = isServing ? 
-                        `<span class="badge-online">🟢 已连接主小区 (Serving)</span>` : 
+                    const isServing = !!c.registered;
+                    const ctypeTag = c.type === '5G NR' ?
+                        `<span class="badge-online" style="font-weight: 700;">🚀 5G NR</span>` :
+                        `<span class="pill-tag" style="color: var(--accent-purple); font-weight: 600;">📶 ${escHtml(fmtVal(c.type, '', '4G LTE'))}</span>`;
+
+                    const bandTag = `<span class="pill-tag" style="color: var(--accent-cyan); font-weight: bold;">${escHtml(fmtVal(c.band))}</span>`;
+                    const statusTag = isServing ?
+                        `<span class="badge-online">🟢 已连接主小区 (Serving)</span>` :
                         `<span class="pill-tag">候选邻区 (Neighbor)</span>`;
-                    
-                    const lockBtn = isServing ? 
-                        `<span style="color: var(--text-muted); font-size: 11px;">当前使用中</span>` : 
-                        `<button class="btn btn-sm btn-primary" onclick="lockCellBand('${c.type}', '${c.band}', ${c.pci}, ${c.arfcn})">🔒 锁定制式</button>`;
+
+                    const lockBtn = isServing ?
+                        `<span style="color: var(--text-muted); font-size: 11px;">当前使用中</span>` :
+                        `<button class="btn btn-sm btn-primary" onclick="lockCellBand('${escJsAttr(c.type)}', '${escJsAttr(c.band)}', '${escJsAttr(c.pci)}', '${escJsAttr(c.arfcn)}')">🔒 切换制式</button>`;
 
                     const rowBg = isServing ? 'background: rgba(6, 182, 212, 0.08);' : '';
 
                     html += `<tr style="${rowBg}">
-                        <td>${ctypeTag} <span style="font-size: 11px; color: var(--text-secondary); margin-left: 4px;">${c.operator}</span></td>
+                        <td>${ctypeTag} <span style="font-size: 11px; color: var(--text-secondary); margin-left: 4px;">${escHtml(fmtVal(c.operator))}</span></td>
                         <td>${bandTag}</td>
-                        <td style="font-weight: 700; color: #fff;">PCI ${c.pci}</td>
-                        <td style="color: var(--accent-cyan);">${c.arfcn}</td>
-                        <td>${c.tac}</td>
-                        <td>${c.nci}</td>
-                        <td><span style="color: var(--accent-green); font-weight: bold;">${c.rsrp}</span> / ${c.sinr}</td>
+                        <td style="font-weight: 700; color: var(--text-primary);">PCI ${escHtml(fmtVal(c.pci))}</td>
+                        <td style="color: var(--accent-cyan);">${escHtml(fmtVal(c.arfcn))}</td>
+                        <td>${escHtml(fmtVal(c.tac))}</td>
+                        <td>${escHtml(fmtVal(c.nci))}</td>
+                        <td><span style="color: var(--accent-green); font-weight: bold;">${escHtml(fmtVal(c.rsrp))}</span> / ${escHtml(fmtVal(c.sinr))}</td>
                         <td>${statusTag}</td>
                         <td>${lockBtn}</td>
                     </tr>`;
@@ -2766,26 +3177,29 @@
                 tbody.innerHTML = html;
                 showToast(`周边基站雷达扫描完毕，共发现 ${list.length} 个基站小区！`);
             } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--accent-red); padding: 16px;">扫描基站失败: ${e.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--accent-red); padding: 16px;">扫描基站失败: ${escHtml(e.message)}</td></tr>`;
             }
         }
 
-        function lockCellBand(ctype, band, pci, arfcn) {
+        async function lockCellBand(ctype, band, pci, arfcn) {
             const targetMode = ctype === '5G NR' ? 'sa_only' : 'lte_only';
             const modeDesc = ctype === '5G NR' ? '5G SA 纯独立组网' : '4G LTE 模式';
-            if (confirm(`确定要将网络接入模式锁定为【${modeDesc}】吗？\n目标小区: ${ctype} ${band} (PCI: ${pci}, ARFCN: ${arfcn})`)) {
-                changeNetworkMode(targetMode);
-                if (document.getElementById('sel-network-mode')) {
-                    document.getElementById('sel-network-mode').value = targetMode;
+            if (confirm(`确定要将系统首选网络制式切换为【${modeDesc}】吗？（注：切换接入制式偏好，并非基带物理锁定单个 PCI/ARFCN）\n参考小区: ${ctype} ${band} (PCI: ${pci}, ARFCN: ${arfcn})`)) {
+                const r = await triggerAction('set_network_mode', { mode: targetMode });
+                if (r && r.success !== false) {
+                    if (document.getElementById('sel-network-mode')) {
+                        document.getElementById('sel-network-mode').value = targetMode;
+                    }
+                    showToast(`基带偏好已切换为: ${modeDesc}`);
+                    setTimeout(() => { fetchCellularDeep(); fetchNearbyCells(); }, 2000);
                 }
-                showToast(`基带偏好已锁定为: ${modeDesc}`);
-                setTimeout(() => { fetchCellularDeep(); fetchNearbyCells(); }, 2000);
             }
         }
 
-        function toggleWifiMaster(checked) {
+        async function toggleWifiMaster(checked) {
             lockToggle('wifi_master');
-            triggerAction('toggle_wifi_master', { enable: checked });
+            const r = await triggerAction('toggle_wifi_master', { enable: checked });
+            if (!r || r.success === false) return;
             const stateEl = document.getElementById('val-wifi-state');
             if (stateEl) stateEl.innerText = checked ? 'Wi-Fi 硬件已开启' : 'Wi-Fi 硬件已关闭';
             if (checked) {
@@ -2807,6 +3221,7 @@
             tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--accent-cyan); padding: 16px;">🔍 正在通过 Wi-Fi 芯片扫描周边无线网络...</td></tr>`;
             try {
                 const res = await fetch('/api/wifi/list');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const list = await res.json();
                 if (!list || list.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">未扫描到周边 Wi-Fi，请确保 Wi-Fi 已开启后重试。</td></tr>`;
@@ -2815,73 +3230,127 @@
                 let html = '';
                 list.forEach(w => {
                     const bandTag = w.is_5g ? `<span class="pill-tag" style="color: var(--accent-cyan);">5GHz</span>` : `<span class="pill-tag">2.4GHz</span>`;
-                    const secTag = w.security === 'Open' ? `<span class="badge-online">开放无密</span>` : `<span class="pill-tag">${w.security}</span>`;
+                    const secStr = fmtVal(w.security, '', 'Unknown');
+                    const secTag = secStr === 'Open' ? `<span class="badge-online">开放无密</span>` : `<span class="pill-tag">${escHtml(secStr)}</span>`;
+                    const qualStr = isValidVal(w.quality) ? `${w.quality}%` : 'N/A';
+                    const rssiStr = isValidVal(w.rssi) ? ` (${w.rssi} dBm)` : '';
                     html += `<tr>
-                        <td style="font-weight: 600; color: #fff;">${w.ssid}</td>
+                        <td style="font-weight: 600; color: var(--text-primary);">${escHtml(fmtVal(w.ssid))}</td>
                         <td>${bandTag}</td>
-                        <td><span style="color: var(--accent-green); font-weight: bold;">${w.quality}%</span> (${w.rssi} dBm)</td>
+                        <td><span style="color: var(--accent-green); font-weight: bold;">${escHtml(qualStr)}</span>${escHtml(rssiStr)}</td>
                         <td>${secTag}</td>
-                        <td><button class="btn btn-sm btn-primary" onclick="promptConnectWifi('${w.ssid}', '${w.security}')">连接</button></td>
+                        <td><button class="btn btn-sm btn-primary" onclick="promptConnectWifi('${escJsAttr(w.ssid)}', '${escJsAttr(secStr)}')">连接</button></td>
                     </tr>`;
                 });
                 tbody.innerHTML = html;
                 document.getElementById('val-wifi-state').innerText = `已发现 ${list.length} 个周边网络`;
             } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--accent-red); padding: 16px;">扫描失败: ${e.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--accent-red); padding: 16px;">扫描失败: ${escHtml(e.message)}</td></tr>`;
             }
         }
 
-        function promptConnectWifi(ssid, sec) {
+        async function promptConnectWifi(ssid, sec) {
             let pwd = "";
             if (sec !== 'Open') {
                 pwd = prompt(`请输入 Wi-Fi [${ssid}] 的无线密码:`, "");
                 if (pwd === null) return;
             }
-            triggerAction('wifi_connect', { ssid: ssid, password: pwd, security: sec });
-            showToast(`正在连接 Wi-Fi: ${ssid}...`);
+            const r = await triggerAction('wifi_connect', { ssid: ssid, password: pwd, security: sec });
+            if (r && r.success !== false) {
+                showToast(`已提交连接请求: ${ssid}`);
+            }
         }
 
-        // Hotspot Config & Schedule
+        // Hotspot Config
         async function fetchHotspotConfig() {
             try {
                 const res = await fetch('/api/hotspot/info');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const d = await res.json();
-                if (d.ssid) document.getElementById('hs-ssid').value = d.ssid;
-                if (d.passphrase) document.getElementById('hs-password').value = d.passphrase;
-                if (d.band) document.getElementById('hs-band').value = d.band;
-                document.getElementById('hs-ax').checked = !!d.ax_enabled;
-                document.getElementById('hs-auto-shutdown').checked = !!d.auto_shutdown;
-                document.getElementById('chk-hotspot-active').checked = !!d.active;
+                const ssidEl = document.getElementById('hs-ssid');
+                if (ssidEl) {
+                    ssidEl.value = isValidVal(d.ssid) ? d.ssid : '';
+                    ssidEl.placeholder = isValidVal(d.ssid) ? '' : 'N/A';
+                }
+                const passEl = document.getElementById('hs-password');
+                if (passEl) {
+                    passEl.value = isValidVal(d.passphrase) ? d.passphrase : '';
+                    passEl.placeholder = isValidVal(d.passphrase) ? '' : 'N/A';
+                }
+                if (isValidVal(d.band) && document.getElementById('hs-band')) {
+                    document.getElementById('hs-band').value = String(d.band);
+                }
+                const axEl = document.getElementById('hs-ax');
+                if (axEl && d.ax_enabled !== undefined && d.ax_enabled !== null) axEl.checked = !!d.ax_enabled;
+                const asEl = document.getElementById('hs-auto-shutdown');
+                if (asEl && d.auto_shutdown !== undefined && d.auto_shutdown !== null) asEl.checked = !!d.auto_shutdown;
+                const actEl = document.getElementById('chk-hotspot-active');
+                if (actEl) actEl.checked = !!d.active;
 
-                if (d.schedule) {
-                    document.getElementById('hs-sched-enabled').checked = !!d.schedule.enabled;
-                    document.getElementById('hs-sched-always-on').checked = !!d.schedule.always_on;
-                    document.getElementById('hs-sched-auto-heal').checked = !!d.schedule.auto_heal;
-                    if (d.schedule.start_time) document.getElementById('hs-sched-start').value = d.schedule.start_time;
-                    if (d.schedule.end_time) document.getElementById('hs-sched-end').value = d.schedule.end_time;
+                const hsStatusBadge = document.getElementById('badge-hotspot-status');
+                if (hsStatusBadge) {
+                    hsStatusBadge.innerText = d.active ? '🟢 运行中' : '⚪ 未开启';
+                    hsStatusBadge.className = d.active ? 'badge-online' : 'badge-warn';
+                }
+
+                const liveSsid = isValidVal(d.live_ssid) ? d.live_ssid : null;
+                const liveChan = (isValidVal(d.live_channel) && d.live_channel !== 0)
+                    ? d.live_channel
+                    : ((isValidVal(d.channel) && d.channel !== 0) ? d.channel : null);
+                const liveText = liveSsid
+                    ? `${liveSsid}${liveChan ? ' (CH ' + liveChan + ')' : ''}`
+                    : 'N/A';
+                const hsLiveEl = document.getElementById('hs-live-info');
+                if (hsLiveEl) hsLiveEl.innerText = liveText;
+                const hsLiveSsid = document.getElementById('hs-live-ssid');
+                if (hsLiveSsid) hsLiveSsid.innerText = liveSsid;
+                const hsLiveChan = document.getElementById('hs-live-channel');
+                if (hsLiveChan) hsLiveChan.innerText = liveChan;
+                const hsLiveIp = document.getElementById('hs-live-ip');
+                if (hsLiveIp) {
+                    const apIp = (window.latestStatusData && window.latestStatusData.interfaces && window.latestStatusData.interfaces.wlan1) || '192.168.43.1/24';
+                    hsLiveIp.innerText = formatInterfaceIps(apIp);
+                }
+
+                const ovApSsid = document.getElementById('ov-ap-ssid');
+                if (ovApSsid) {
+                    const dispSsid = liveSsid || (isValidVal(d.ssid) ? d.ssid : 'N/A');
+                    const bandText = d.band == 1 ? '2.4GHz' : (d.band == 2 ? '5GHz' : (d.band == 3 ? '2.4G+5GHz' : ''));
+                    ovApSsid.innerText = `${dispSsid}${liveChan ? ' · CH ' + liveChan : ''}${bandText ? ' (' + bandText + ')' : ''}`;
                 }
             } catch (e) {
                 console.error("fetchHotspotConfig error", e);
+                const hsBadge = document.getElementById('badge-hotspot-status');
+                if (hsBadge) { hsBadge.innerText = 'N/A'; hsBadge.className = 'badge-warn'; }
+                const hsLiveEl = document.getElementById('hs-live-info');
+                if (hsLiveEl) hsLiveEl.innerText = 'N/A';
             }
         }
 
         async function saveHotspotConfig() {
-            const days = [];
-            document.querySelectorAll('.hs-day:checked').forEach(cb => days.push(parseInt(cb.value)));
+            const axEl = document.getElementById('hs-ax');
+            const autoShutEl = document.getElementById('hs-auto-shutdown');
+            const ssidEl = document.getElementById('hs-ssid');
+            const passEl = document.getElementById('hs-password');
+            const bandEl = document.getElementById('hs-band');
+
+            const ssidVal = ssidEl ? ssidEl.value.trim() : '';
+            const passVal = passEl ? passEl.value : '';
+            if (!ssidVal) {
+                showToast("❌ 热点名称 (SSID) 不能为空");
+                return;
+            }
+            if (passVal && passVal.length < 8) {
+                showToast("❌ WPA2 热点密码至少需要 8 位字符");
+                return;
+            }
+
             const payload = {
-                ssid: document.getElementById('hs-ssid').value,
-                passphrase: document.getElementById('hs-password').value,
-                band: parseInt(document.getElementById('hs-band').value),
-                ax_enabled: document.getElementById('hs-ax').checked,
-                auto_shutdown: document.getElementById('hs-auto-shutdown').checked,
-                schedule: {
-                    enabled: document.getElementById('hs-sched-enabled').checked,
-                    always_on: document.getElementById('hs-sched-always-on').checked,
-                    auto_heal: document.getElementById('hs-sched-auto-heal').checked,
-                    start_time: document.getElementById('hs-sched-start').value,
-                    end_time: document.getElementById('hs-sched-end').value,
-                    days: days
-                }
+                ssid: ssidVal,
+                passphrase: passVal,
+                band: bandEl ? parseInt(bandEl.value, 10) : 2,
+                ax_enabled: axEl ? axEl.checked : true,
+                auto_shutdown: autoShutEl ? autoShutEl.checked : false
             };
             try {
                 const res = await fetch('/api/hotspot/save', {
@@ -2889,33 +3358,17 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const r = await res.json();
-                showToast(r.message || "热点配置与调度策略已成功保存！");
+                if (r.success === false) {
+                    showToast("❌ 保存失败: " + (r.message || r.error || "未知错误"));
+                    return;
+                }
+                showToast(r.message || "热点配置已成功保存！");
+                fetchHotspotConfig();
             } catch (e) {
                 showToast("保存热点失败: " + e.message);
             }
-        }
-
-        function saveHotspotScheduleOnly() {
-            saveHotspotConfig();
-        }
-
-        function applyDormSchedulePreset() {
-            document.getElementById('hs-sched-enabled').checked = true;
-            document.getElementById('hs-sched-always-on').checked = false;
-            document.getElementById('hs-sched-auto-heal').checked = true;
-            document.getElementById('hs-sched-start').value = "23:00";
-            document.getElementById('hs-sched-end').value = "07:00";
-
-            document.querySelectorAll('.hs-day').forEach(cb => {
-                const val = parseInt(cb.value);
-                if (val === 7 || (val >= 1 && val <= 4)) {
-                    cb.checked = true;
-                } else {
-                    cb.checked = false;
-                }
-            });
-            showToast("已套用断电作息：周日~周四 23:00~次日07:00开启，周五周六关闭！点击下方保存即可生效！");
         }
 
         // ==========================================
@@ -2927,45 +3380,63 @@
         async function fetchProcesses() {
             try {
                 const res = await fetch('/api/system/processes');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const d = await res.json();
 
                 // CPU
-                if (d.cpu) {
+                if (d.cpu && !d.cpu.error) {
+                    const cpuBadge = document.getElementById('perf-cpu-badge');
+                    if (cpuBadge) cpuBadge.innerText = isValidVal(d.cpu.cores) ? `${d.cpu.cores} 核` : 'N/A';
                     const cpuEl = document.getElementById('perf-cpu-usage');
-                    if (cpuEl) cpuEl.innerText = `${d.cpu.usage}%`;
+                    if (cpuEl) cpuEl.innerText = isValidVal(d.cpu.usage) ? `${d.cpu.usage}%` : 'N/A';
                     const loadEl = document.getElementById('perf-cpu-load');
-                    if (loadEl) loadEl.innerText = `Load: ${d.cpu.load_1 || '--'} / ${d.cpu.load_5 || '--'} / ${d.cpu.load_15 || '--'}`;
+                    if (loadEl) loadEl.innerText = `Load: ${fmtVal(d.cpu.load_1, '', '--')} / ${fmtVal(d.cpu.load_5, '', '--')} / ${fmtVal(d.cpu.load_15, '', '--')}`;
                 }
 
-                // GPU (Adreno 650)
-                if (d.gpu) {
+                // GPU
+                if (d.gpu && !d.gpu.error) {
                     const gpuEl = document.getElementById('perf-gpu-usage');
-                    if (gpuEl) gpuEl.innerText = `${d.gpu.usage}%`;
+                    if (gpuEl) gpuEl.innerText = isValidVal(d.gpu.usage) ? `${d.gpu.usage}%` : 'N/A';
                     const freqEl = document.getElementById('perf-gpu-freq');
-                    if (freqEl) freqEl.innerText = `主频: ${d.gpu.freq_mhz || 0} MHz`;
+                    if (freqEl) freqEl.innerText = isValidVal(d.gpu.freq_mhz) ? `主频: ${d.gpu.freq_mhz} MHz` : '主频: N/A';
                 }
 
-                // RAM (LPDDR5)
-                if (d.memory) {
+                // RAM & Swap / ZRAM
+                if (d.memory && !d.memory.error) {
                     const m = d.memory;
-                    const usedPct = m.total_mb > 0 ? Math.round((m.used_mb / m.total_mb) * 100) : 0;
+                    const hasRam = typeof m.total_mb === 'number' && m.total_mb > 0;
+                    const usedPct = hasRam && typeof m.used_mb === 'number' ? Math.round((m.used_mb / m.total_mb) * 100) : null;
                     const memEl = document.getElementById('perf-mem-usage');
-                    if (memEl) memEl.innerText = `${usedPct}%`;
+                    if (memEl) memEl.innerText = usedPct !== null ? `${usedPct}%` : 'N/A';
                     const memDet = document.getElementById('perf-mem-detail');
-                    if (memDet) memDet.innerText = `已用: ${m.used_mb} MB / 总计: ${m.total_mb} MB`;
+                    if (memDet) memDet.innerText = `已用: ${fmtVal(m.used_mb)} MB / 总计: ${fmtVal(m.total_mb)} MB`;
+                    const memBadge = document.getElementById('perf-mem-badge');
+                    if (memBadge) {
+                        memBadge.innerText = hasRam ? `${(m.total_mb / 1024).toFixed(1).replace(/\.0$/, '')} GB` : 'N/A';
+                    }
 
-                    // Swap / ZRAM
-                    const swapPct = m.swap_total_mb > 0 ? Math.round((m.swap_used_mb / m.swap_total_mb) * 100) : 0;
+                    const hasSwap = typeof m.swap_total_mb === 'number';
+                    const swapPct = hasSwap && m.swap_total_mb > 0 && typeof m.swap_used_mb === 'number'
+                        ? Math.round((m.swap_used_mb / m.swap_total_mb) * 100)
+                        : (hasSwap && m.swap_total_mb === 0 ? 0 : null);
                     const swapEl = document.getElementById('perf-swap-usage');
-                    if (swapEl) swapEl.innerText = `${swapPct}%`;
+                    if (swapEl) swapEl.innerText = swapPct !== null ? `${swapPct}%` : 'N/A';
                     const swapDet = document.getElementById('perf-swap-detail');
-                    if (swapDet) swapDet.innerText = `已用: ${m.swap_used_mb} MB / 总计: ${m.swap_total_mb} MB`;
+                    if (swapDet) swapDet.innerText = `已用: ${fmtVal(m.swap_used_mb)} MB / 总计: ${fmtVal(m.swap_total_mb)} MB`;
+                    const swapBadge = document.getElementById('perf-swap-badge');
+                    if (swapBadge) {
+                        swapBadge.innerText = hasSwap
+                            ? (m.swap_total_mb > 0 ? `${(m.swap_total_mb / 1024).toFixed(1).replace(/\.0$/, '')} GB` : '0 GB')
+                            : 'N/A';
+                    }
                 }
 
                 allProcesses = d.processes || [];
                 renderProcessTable();
             } catch (e) {
                 console.error("fetchProcesses error", e);
+                const tbody = document.getElementById('proc-tbody');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--accent-red); padding: 24px;">获取进程失败: ${escHtml(e.message)}</td></tr>`;
             }
         }
 
@@ -2977,7 +3448,7 @@
 
             let list = allProcesses;
             if (kw) {
-                list = allProcesses.filter(p => 
+                list = allProcesses.filter(p =>
                     (p.name && p.name.toLowerCase().includes(kw)) ||
                     (p.raw_cmd && p.raw_cmd.toLowerCase().includes(kw)) ||
                     (p.package && p.package.toLowerCase().includes(kw)) ||
@@ -2995,20 +3466,20 @@
             list.forEach(p => {
                 const isHighCpu = p.cpu >= 15;
                 const cpuStyle = isHighCpu ? 'color: var(--accent-red); font-weight: 700;' : (p.cpu > 0 ? 'color: var(--accent-cyan);' : 'color: var(--text-muted);');
-                const killBtn = p.can_kill ? 
-                    `<button class="btn btn-sm btn-danger" onclick="killProcess(${p.pid}, '${p.package || ''}', '${(p.name || '').replace(/'/g, "\\'")}')">结束进程</button>` :
+                const killBtn = p.can_kill ?
+                    `<button class="btn btn-sm btn-danger" onclick="killProcess(${Number(p.pid)}, '${escJsAttr(p.package || '')}', '${escJsAttr(p.name || '')}')">结束进程</button>` :
                     `<span style="color: var(--text-muted); font-size: 11px;">系统核心</span>`;
 
                 html += `<tr>
-                    <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">${p.pid}</td>
+                    <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">${escHtml(p.pid)}</td>
                     <td>
-                        <div style="font-weight: 600; color: #fff;">${p.name}</div>
-                        ${p.package ? `<div style="font-size: 11px; color: var(--accent-cyan); font-family: var(--font-mono);">${p.package}</div>` : (p.raw_cmd && p.raw_cmd !== p.name ? `<div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; max-width: 320px; white-space: nowrap;">${p.raw_cmd}</div>` : '')}
+                        <div style="font-weight: 600; color: var(--text-primary);">${escHtml(p.name)}</div>
+                        ${p.package ? `<div style="font-size: 11px; color: var(--accent-cyan); font-family: var(--font-mono);">${escHtml(p.package)}</div>` : (p.raw_cmd && p.raw_cmd !== p.name ? `<div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; max-width: 320px; white-space: nowrap;">${escHtml(p.raw_cmd)}</div>` : '')}
                     </td>
-                    <td><span class="pill-tag" style="font-size: 11px;">${p.user}</span></td>
-                    <td style="font-family: var(--font-mono); ${cpuStyle}">${p.cpu}%</td>
-                    <td style="font-family: var(--font-mono); color: var(--accent-green); font-size: 12px;">${p.res}</td>
-                    <td><span class="badge ${p.status === '运行中' ? 'badge-online' : 'badge-warn'}" style="font-size: 10px;">${p.status}</span></td>
+                    <td><span class="pill-tag" style="font-size: 11px;">${escHtml(p.user)}</span></td>
+                    <td style="font-family: var(--font-mono); ${cpuStyle}">${escHtml(p.cpu)}%</td>
+                    <td style="font-family: var(--font-mono); color: var(--accent-green); font-size: 12px;">${escHtml(p.res)}</td>
+                    <td><span class="badge ${p.status === '运行中' ? 'badge-online' : 'badge-warn'}" style="font-size: 10px;">${escHtml(p.status)}</span></td>
                     <td style="text-align: right;">${killBtn}</td>
                 </tr>`;
             });
@@ -3023,11 +3494,12 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ pid: pid, package: pkg })
                 });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const d = await res.json();
                 if (d.success) {
                     showToast(`✅ 已成功结束进程 [${name}]`);
                 } else {
-                    showToast(`❌ 结束进程失败: ${d.message}`);
+                    showToast(`❌ 结束进程失败: ${d.message || '未知错误'}`);
                 }
                 setTimeout(fetchProcesses, 600);
             } catch (e) {
@@ -3052,26 +3524,33 @@
         }
 
         // ==========================================
-        // 👥 Clients Table & Management (Hotspot + upstream router fusion)
+        // 👥 Clients Table & Management (Fusion K40S Hotspot + Router)
         // ==========================================
         async function fetchClients() {
             const tbody = document.getElementById('clients-body');
             const statusMsg = document.getElementById('clients-router-msg');
             const countBadge = document.getElementById('clients-count-badge');
+            const ovRouter = document.getElementById('ov-eth-router');
             try {
                 const res = await fetch('/api/clients');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                
+
                 const list = Array.isArray(data) ? data : (data.clients || []);
-                const routerOnline = data.router_online !== undefined ? data.router_online : false;
-                const routerMsg = data.router_message || (routerOnline ? '正常连接中' : '离线 (上游断电)');
+                const routerOnline = data.router_online;
+                const routerMsg = fmtVal(data.router_message, '', routerOnline === true ? '正常连接中' : (routerOnline === false ? '离线' : '状态未知'));
 
                 if (statusMsg) {
-                    if (routerOnline) {
-                        statusMsg.innerHTML = `<span style="color: #4ade80; font-weight: 600;">🟢 OpenWrt 路由器在线</span> · <span style="color: var(--text-secondary);">${routerMsg}</span>`;
+                    if (routerOnline === true) {
+                        statusMsg.innerHTML = `<span style="color: #4ade80; font-weight: 600;">🟢 路由器在线</span> · <span style="color: var(--text-secondary);">${escHtml(routerMsg)}</span>`;
+                    } else if (routerOnline === false) {
+                        statusMsg.innerHTML = `<span style="color: #f59e0b; font-weight: 600;">⚠️ 路由器未连通</span> · <span style="color: var(--text-secondary);">${escHtml(routerMsg)}</span>`;
                     } else {
-                        statusMsg.innerHTML = `<span style="color: #f59e0b; font-weight: 600;">⚠️ 路由器未连通 (上游断电中)</span> · <span style="color: var(--text-secondary);">${routerMsg}</span>`;
+                        statusMsg.innerHTML = `<span style="color: var(--text-muted); font-weight: 600;">❔ 路由器状态: N/A</span> · <span style="color: var(--text-secondary);">${escHtml(routerMsg)}</span>`;
                     }
+                }
+                if (ovRouter) {
+                    ovRouter.innerText = routerOnline === true ? routerMsg : (routerOnline === false ? '离线 / 未连接' : 'N/A');
                 }
                 if (countBadge) {
                     countBadge.innerText = `${list.length} 台终端在线`;
@@ -3083,39 +3562,44 @@
                 }
 
                 let html = '';
+                const limitOptions = [0, 2, 5, 10, 30];
                 list.forEach(c => {
-                    const isBlk = c.blocked;
+                    const isBlk = !!c.blocked;
                     const statusTag = isBlk ? `<span class="badge-danger">⛔ 已拉黑</span>` : `<span class="badge-online">🟢 在线</span>`;
-                    const blockBtn = isBlk ? 
-                        `<button class="btn btn-sm btn-primary" onclick="toggleBlockClient('${c.mac}', false)">解封</button>` : 
-                        `<button class="btn btn-sm btn-danger" onclick="toggleBlockClient('${c.mac}', true)">拉黑</button>`;
+                    const blockBtn = isBlk ?
+                        `<button class="btn btn-sm btn-primary" onclick="toggleBlockClient('${escJsAttr(c.mac)}', false)">解封</button>` :
+                        `<button class="btn btn-sm btn-danger" onclick="toggleBlockClient('${escJsAttr(c.mac)}', true)">拉黑</button>`;
 
                     const isRouterClient = c.source && c.source.includes('路由器');
-                    const kickBtn = isRouterClient ? 
+                    const kickBtn = isRouterClient ?
                         `<button class="btn btn-sm" disabled title="路由器下挂设备请在路由器后台断连" style="opacity: 0.45; cursor: not-allowed;">断连</button>` :
-                        `<button class="btn btn-sm" onclick="kickClient('${c.ip}', '${c.mac}')">断连</button>`;
+                        `<button class="btn btn-sm" onclick="kickClient('${escJsAttr(c.ip)}', '${escJsAttr(c.mac)}')">断连</button>`;
+
+                    const activeMbps = typeof c.limit_mbps === 'number'
+                        ? c.limit_mbps
+                        : (typeof c.active_limit_kbps === 'number' && c.active_limit_kbps > 0 ? Math.round(c.active_limit_kbps * 8 / 1024) : 0);
+                    const optsHtml = limitOptions.map(v => {
+                        const label = v === 0 ? '全速直通' : `${v} Mbps`;
+                        return `<option value="${v}"${v === activeMbps ? ' selected' : ''}>${label}</option>`;
+                    }).join('');
 
                     html += `<tr>
-                        <td><span class="pill-tag">${c.source || c.interface}</span></td>
+                        <td><span class="pill-tag">${escHtml(c.source || c.interface || 'N/A')}</span></td>
                         <td>
-                            <div style="font-weight: 600; color: #fff;">${c.name || '未知设备'}</div>
-                            <div style="font-size: 11px; color: var(--text-muted);">${c.vendor || '--'}</div>
+                            <div style="font-weight: 600; color: var(--text-primary);">${escHtml(c.name || '未知设备')}</div>
+                            ${isValidVal(c.vendor) ? `<div style="font-size: 11px; color: var(--text-muted);">${escHtml(c.vendor)}</div>` : ''}
                         </td>
-                        <td style="color: var(--accent-cyan); font-weight: 600; font-family: var(--font-mono);">${c.ip}</td>
-                        <td style="font-family: var(--font-mono); font-size: 12px;">${c.mac}</td>
+                        <td style="color: var(--accent-cyan); font-weight: 600; font-family: var(--font-mono);">${escHtml(fmtVal(c.ip))}</td>
+                        <td style="font-family: var(--font-mono); font-size: 12px;">${escHtml(fmtVal(c.mac))}</td>
                         <td style="font-family: var(--font-mono); font-size: 12px;">
-                            <span style="color: #38bdf8;">↓ ${c.speed_rx || '0 B/s'}</span><br>
-                            <span style="color: #c084fc;">↑ ${c.speed_tx || '0 B/s'}</span>
+                            <span style="color: #38bdf8;">↓ ${escHtml(c.speed_rx || '0 B/s')}</span><br>
+                            <span style="color: #c084fc;">↑ ${escHtml(c.speed_tx || '0 B/s')}</span>
                         </td>
-                        <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">${c.total_traffic || '--'}</td>
+                        <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">${escHtml(fmtVal(c.total_traffic))}</td>
                         <td>${statusTag}</td>
                         <td>
-                            <select onchange="limitClientSpeed('${c.ip}', this.value)" style="padding: 2px 6px; font-size: 11px; background: rgba(15,23,42,0.8); border: 1px solid var(--border-card); color: #fff; border-radius: 4px;">
-                                <option value="0">全速直通</option>
-                                <option value="2">2 Mbps</option>
-                                <option value="5">5 Mbps</option>
-                                <option value="10">10 Mbps</option>
-                                <option value="30">30 Mbps</option>
+                            <select onchange="limitClientSpeed('${escJsAttr(c.ip)}', this.value)" style="padding: 2px 6px; font-size: 11px; background: var(--input-bg); border: 1px solid var(--border-card); color: var(--text-primary); border-radius: 4px;">
+                                ${optsHtml}
                             </select>
                         </td>
                         <td style="text-align: right;">
@@ -3128,40 +3612,46 @@
                 });
                 tbody.innerHTML = html;
             } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--accent-red); padding: 20px;">加载设备列表失败: ${e.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--accent-red); padding: 20px;">加载设备列表失败: ${escHtml(e.message)}</td></tr>`;
+                if (statusMsg) statusMsg.innerHTML = `<span style="color: var(--accent-red);">❌ 设备列表获取失败: ${escHtml(e.message)}</span>`;
             }
         }
 
-        function kickClient(ip, mac) {
+        async function kickClient(ip, mac) {
             if (!confirm(`确定要单次踢掉设备 [${ip}] 吗？`)) return;
-            triggerAction('kick_client', { ip: ip, mac: mac });
-            showToast(`已断开设备 ${ip}`);
-            setTimeout(fetchClients, 1200);
+            const r = await triggerAction('kick_client', { ip: ip, mac: mac });
+            if (r && r.success !== false) {
+                showToast(r.message || `已断开设备 ${ip}`);
+                setTimeout(fetchClients, 1200);
+            }
         }
 
-        function toggleBlockClient(mac, block) {
-            triggerAction('toggle_client_block', { mac: mac, block: block });
-            showToast(block ? `已永久拉黑 ${mac}` : `已解除拉黑 ${mac}`);
-            setTimeout(fetchClients, 1200);
+        async function toggleBlockClient(mac, block) {
+            const r = await triggerAction('toggle_client_block', { mac: mac, block: block });
+            if (r && r.success !== false) {
+                showToast(r.message || (block ? `已永久拉黑 ${mac}` : `已解除拉黑 ${mac}`));
+                setTimeout(fetchClients, 1200);
+            }
         }
 
-        function limitClientSpeed(ip, rateMbps) {
-            const rateKbps = parseInt(rateMbps) * 1024 / 8;
-            triggerAction('limit_client_speed', { ip: ip, rate_kbps: rateKbps });
-            showToast(rateMbps == 0 ? `设备 ${ip} 限速已解除` : `设备 ${ip} 已限速为 ${rateMbps} Mbps`);
+        async function limitClientSpeed(ip, rateMbps) {
+            const mbps = parseInt(rateMbps, 10) || 0;
+            const rateKbps = Math.round(mbps * 1024 / 8);
+            const r = await triggerAction('limit_client_speed', { ip: ip, rate_kbps: rateKbps });
+            if (r && r.success !== false) {
+                showToast(r.message || (mbps === 0 ? `设备 ${ip} 限速已解除` : `设备 ${ip} 已限速为 ${mbps} Mbps`));
+            }
         }
 
-        function applyGlobalRateLimit(rateMbps) {
-            triggerAction('set_speed_limit', { interface: 'all', rate_mbps: parseInt(rateMbps) });
-            showToast(rateMbps == 0 ? "整机已恢复全速直通" : `整机出口已限速至 ${rateMbps} Mbps`);
+        async function applyGlobalRateLimit(rateMbps) {
+            const mbps = parseInt(rateMbps, 10) || 0;
+            const r = await triggerAction('set_speed_limit', { interface: 'all', rate_mbps: mbps });
+            if (r && r.success !== false) {
+                showToast(r.message || (mbps === 0 ? "整机已恢复全速直通" : `整机出口已限速至 ${mbps} Mbps`));
+            }
         }
 
         // Toggle Actions
-        function toggleWatchdog(checked) {
-            lockToggle('watchdog');
-            triggerAction('toggle_watchdog', { enable: checked });
-        }
-
         function toggleEthTether(checked) {
             lockToggle('eth_tether');
             triggerAction('toggle_eth_tether', { enable: checked });
@@ -3177,16 +3667,6 @@
             triggerAction('toggle_wifi_power_save', { enable: checked });
         }
 
-        function toggleQoS500B(checked) {
-            lockToggle('qos_500b');
-            triggerAction('toggle_qos_500b', { enable: checked });
-        }
-
-        function toggleQoScs2(checked) {
-            lockToggle('qos_cs2');
-            triggerAction('toggle_qos_cs2', { enable: checked });
-        }
-
         function toggleHotspot(checked) {
             lockToggle('hotspot');
             triggerAction('toggle_hotspot', { enable: checked });
@@ -3196,14 +3676,25 @@
             triggerAction('set_network_mode', { mode: mode });
         }
 
-        function triggerWoL() {
-            triggerAction('wake_pc', { mac: 'cc:28:aa:4f:bd:26' });
-            showToast("⚡ 已广播魔术包唤醒局域网主机！");
+        async function triggerWoL() {
+            const macInput = document.getElementById('wol-mac-input');
+            const targetMac = (macInput && macInput.value.trim()) || (window.cachedConfig && window.cachedConfig.wol_mac) || '';
+            if (!targetMac) {
+                showToast('⚠️ 请输入目标主机的 MAC 地址', 3000);
+                return;
+            }
+            showToast(`正在发送唤醒包至: ${targetMac}...`, 2000);
+            const r = await triggerAction('wake_pc', { mac: targetMac });
+            if (r && r.success !== false) {
+                showToast(r.message || "⚡ 已广播魔术包唤醒 9600X 电竞 PC！");
+            }
         }
 
-        function flushDNS() {
-            triggerAction('exec_cmd', { command: 'ndc resolver clearnetdns wlan0 ; ndc resolver clearnetdns eth0' });
-            showToast("🧹 DNS 缓存已清空");
+        async function flushDNS() {
+            const r = await triggerAction('exec_cmd', { command: 'ndc resolver clearnetdns wlan0 ; ndc resolver clearnetdns eth0' });
+            if (r && r.success !== false) {
+                showToast("🧹 DNS 缓存已清空");
+            }
         }
 
         async function triggerAction(action, params = {}) {
@@ -3213,11 +3704,17 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: action, params: params })
                 });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const r = await res.json();
-                if (r.message) showToast(r.message);
+                if (r.success === false) {
+                    showToast("❌ 操作失败: " + (r.message || r.error || "未知错误"));
+                } else if (r.message) {
+                    showToast(r.message);
+                }
                 return r;
             } catch (e) {
-                showToast("操作请求失败: " + e.message);
+                showToast("❌ 操作请求失败: " + e.message);
+                return { success: false, message: e.message };
             }
         }
 
@@ -3243,6 +3740,13 @@
             }
         }
 
+        function updateScreenResolution(img) {
+            const resEl = document.getElementById('screen-res-text');
+            if (resEl && img && img.naturalWidth && img.naturalHeight) {
+                resEl.innerText = `📐 帧尺寸: ${img.naturalWidth}×${img.naturalHeight}`;
+            }
+        }
+
         function fetchScreenFrame() {
             if (!sCtx) return;
             const img = new Image();
@@ -3250,6 +3754,17 @@
                 screenCanvas.width = img.width;
                 screenCanvas.height = img.height;
                 sCtx.drawImage(img, 0, 0);
+                updateScreenResolution(img);
+            };
+            img.onerror = () => {
+                const fpsText = document.getElementById('screen-fps-text');
+                if (fpsText) fpsText.innerText = 'N/A';
+                const badge = document.getElementById('badge-stream-state');
+                if (badge && !screenStreaming) {
+                    badge.innerText = '截屏失败';
+                    badge.className = 'badge-warn';
+                }
+                showToast('❌ 获取投屏画面失败 (503/离线)');
             };
             img.src = `/api/screen/frame?t=${Date.now()}&quality=50&width=360`;
         }
@@ -3264,16 +3779,42 @@
                     screenCanvas.height = img.height;
                     sCtx.drawImage(img, 0, 0);
                 }
+                updateScreenResolution(img);
                 const rtt = Date.now() - t0;
                 const fps = Math.min(6, (1000 / Math.max(100, rtt))).toFixed(1);
                 const fpsText = document.getElementById('screen-fps-text');
                 if (fpsText) fpsText.innerText = `${fps} FPS`;
+                const badge = document.getElementById('badge-stream-state');
+                if (badge) { badge.innerText = '串流中'; badge.className = 'badge-online'; }
                 if (screenStreaming) screenTimer = setTimeout(streamLoop, 120);
             };
             img.onerror = () => {
+                const fpsText = document.getElementById('screen-fps-text');
+                if (fpsText) fpsText.innerText = '-- FPS';
+                const badge = document.getElementById('badge-stream-state');
+                if (badge) { badge.innerText = '重试中...'; badge.className = 'badge-warn'; }
                 if (screenStreaming) screenTimer = setTimeout(streamLoop, 800);
             };
             img.src = `/api/screen/frame?t=${Date.now()}&quality=45&width=340`;
+        }
+
+        async function sendScreenControl(payload) {
+            try {
+                const res = await fetch('/api/screen/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const r = await res.json();
+                if (r.success === false) {
+                    showToast(`❌ 屏幕控制失败: ${r.error || r.message || '未知错误'}`);
+                }
+                return r;
+            } catch (e) {
+                showToast(`❌ 屏幕控制请求失败: ${e.message}`);
+                return null;
+            }
         }
 
         // Screen Touch Mapping
@@ -3304,19 +3845,11 @@
                 setTimeout(() => r.remove(), 400);
 
                 if (dist < 0.03) {
-                    fetch('/api/screen/control', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ action: 'tap', params: { x: touchStartX, y: touchStartY } })
-                    });
+                    sendScreenControl({ action: 'tap', params: { x: touchStartX, y: touchStartY } });
                 } else {
-                    fetch('/api/screen/control', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            action: 'swipe',
-                            params: { x1: touchStartX, y1: touchStartY, x2: endX, y2: endY, duration: Math.min(400, dur) }
-                        })
+                    sendScreenControl({
+                        action: 'swipe',
+                        params: { x1: touchStartX, y1: touchStartY, x2: endX, y2: endY, duration: Math.min(400, dur) }
                     });
                 }
                 setTimeout(fetchScreenFrame, 350);
@@ -3324,29 +3857,17 @@
         }
 
         function sendPhoneKey(code) {
-            fetch('/api/screen/control', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ action: 'key', params: { code: code } })
-            });
+            sendScreenControl({ action: 'key', params: { code: code } });
             setTimeout(fetchScreenFrame, 300);
         }
 
         function wakePhoneScreen() {
-            fetch('/api/screen/control', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ action: 'key', params: { code: 26 } })
-            });
+            sendScreenControl({ action: 'key', params: { code: 26 } });
             setTimeout(fetchScreenFrame, 300);
         }
 
         function unlockPhoneScreen() {
-            fetch('/api/screen/control', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ action: 'wake' })
-            });
+            sendScreenControl({ action: 'wake' });
             setTimeout(fetchScreenFrame, 600);
         }
 
@@ -3354,11 +3875,7 @@
             const input = document.getElementById('phone-input-text');
             const txt = input.value;
             if (!txt) return;
-            fetch('/api/screen/control', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ action: 'text', params: { text: txt } })
-            });
+            sendScreenControl({ action: 'text', params: { text: txt } });
             input.value = '';
             setTimeout(fetchScreenFrame, 350);
         }
@@ -3370,7 +3887,8 @@
             const type = document.getElementById('sel-log-type').value;
             logBox.innerText = `正在读取 [${type}] 实时日志...`;
             try {
-                const res = await fetch(`/api/logs?type=${type}&lines=120`);
+                const res = await fetch(`/api/logs?type=${encodeURIComponent(type)}&lines=120`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const d = await res.json();
                 currentLogsRaw = d.content || "日志输出为空。";
                 filterLogs();
@@ -3407,8 +3925,13 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ command: cmd })
                 });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const d = await res.json();
-                termBox.innerText += (d.output || "(无输出)");
+                if (d.success === false) {
+                    termBox.innerText += `[Error] ${d.error || d.output || '命令执行失败'}`;
+                } else {
+                    termBox.innerText += (d.output || "(无输出)");
+                }
             } catch (e) {
                 termBox.innerText += `执行错误: ${e.message}`;
             }
@@ -3420,10 +3943,71 @@
             executeTerminalCmd();
         }
 
+        // Auto Time-based Light / Dark Theme (07:00-19:00 Light, 19:00-07:00 Dark)
+        function applyTheme() {
+            const mode = localStorage.getItem('cybergate_theme_mode') || 'auto';
+            const h = new Date().getHours();
+            const actual = (mode === 'light' || mode === 'dark') ? mode : ((h >= 7 && h < 19) ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', actual);
+            const btn = document.getElementById('theme-toggle-btn');
+            if (btn) {
+                if (mode === 'auto') {
+                    btn.textContent = actual === 'light' ? '🌓 自动(日间浅色)' : '🌓 自动(夜间深色)';
+                } else if (mode === 'light') {
+                    btn.textContent = '☀️ 浅色';
+                } else {
+                    btn.textContent = '🌙 深色';
+                }
+            }
+        }
+
+        function cycleThemeMode() {
+            const order = ['auto', 'light', 'dark'];
+            const cur = localStorage.getItem('cybergate_theme_mode') || 'auto';
+            const next = order[(order.indexOf(cur) + 1) % order.length];
+            localStorage.setItem('cybergate_theme_mode', next);
+            applyTheme();
+        }
+
+        
+        // Helper handlers for UI buttons
+        async function refreshCellularSafe() {
+            showToast('正在平滑刷新蜂窝基带（不断网）...', 2000);
+            try {
+                const r = await triggerAction('refresh_cellular');
+                if (r && r.success) {
+                    showToast('✅ 基带已平滑刷新', 2500);
+                } else {
+                    showToast('⚠️ 刷新请求已发送', 2000);
+                }
+            } catch (e) {
+                showToast(`刷新失败: ${e.message}`, 3000);
+            }
+            setTimeout(() => { fetchCellularDeep(); fetchNearbyCells(); }, 1000);
+        }
+
+        function copyWinMountCmd() {
+            const el = document.getElementById('cmd-win-mount');
+            if (el) copyToClipboard(el.innerText || el.textContent);
+        }
+
+        function copyScrcpyCmd() {
+            const el = document.getElementById('scrcpy-cmd-text');
+            if (el) copyToClipboard(el.innerText || el.textContent);
+        }
+
+        function loadProxypanel(force = false) {
+            return loadProxyPanel(force);
+        }
+
         // Initialization
+        applyTheme();
+        setInterval(applyTheme, 60000);
         pollStatus();
         pollTraffic();
         pollTrafficHistory();
+        fetchCellularDeep();
+        fetchHotspotConfig();
         setInterval(pollTraffic, 1000);
         setInterval(pollStatus, 3000);
         setInterval(pollTrafficHistory, 15000);

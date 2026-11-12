@@ -75,7 +75,7 @@ examples/               不同 ROM 的配置样例
 | 进程 | 列出/杀进程 |
 | 屏幕 | 投屏帧 + 远程点击（依赖 screencap / minicap 类工具） |
 | 代理面板 | 反代 mihomo/clash 的 external-controller，单页管理 |
-| 内置 DNS | 解析本地域名（如 k40s.com → 网关 IP），其余转发上游 |
+| 内置 DNS | 解析本地域名（如 gateway.lan → 网关 IP），其余转发上游 |
 | WebDAV | 把 /sdcard 作为网盘（独立进程，可选） |
 
 ## 依赖

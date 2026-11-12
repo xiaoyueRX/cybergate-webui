@@ -12,6 +12,7 @@ import socket
 import base64
 import subprocess
 import urllib.parse
+import urllib.request
 import threading
 import struct
 import io
@@ -59,9 +60,12 @@ if not os.path.exists(os.path.dirname(TRAFFIC_DB_PATH)):
 _screen_lock = threading.Lock()
 _last_frame_time = 0
 _last_frame_bytes = None
-_screen_width = 800
+_screen_width = 1080
 # 2026-10-16: 路由器探测节流时间戳（clients 列表 60s 缓存）
 _router_probe_skip = 0
+_last_router_online = None
+_last_router_msg = ""
+_last_router_clients = []
 _screen_height = 2400
 _screen_file = "/data/local/tmp/screen.raw"
 
@@ -83,17 +87,27 @@ def _ensure_adb() -> bool:
         return False
 
 
-def _run_host_shell(cmd: str, timeout: int = 15) -> str:
-    """Run command on Android host natively (WebUI now runs on-device as root).
-    Fallback to ADB transport when running off-device (legacy mode)."""
+def _run_host_shell_rc(cmd: str, timeout: int = 15):
+    """Run command on Android host natively (or via ADB) and return (returncode, stdout, stderr)."""
     if ON_DEVICE:
         b64 = base64.b64encode(cmd.encode("utf-8")).decode("ascii")
-        wrapped = f"echo '{b64}' | base64 -d | su"
+        su_bin = "/product/bin/su" if os.path.exists("/product/bin/su") else "su"
+        wrapped = (
+            f"echo '{b64}' | base64 -d | /system/bin/sh"
+            if os.getuid() == 0
+            else f"echo '{b64}' | base64 -d | {su_bin}"
+        )
         try:
-            # 2026-10-16: 净化环境——python 进程的 PYTHONHOME/LD_LIBRARY_PATH(termux)
+            # 净化环境——python 进程的 PYTHONHOME/LD_LIBRARY_PATH(termux)
             # 会毒化子进程（screencap 等系统动态链接程序崩溃 CANNOT LINK EXECUTABLE）
-            _clean_env = {k: v for k, v in os.environ.items()
-                          if k not in ("PYTHONHOME", "LD_LIBRARY_PATH", "PYTHONPATH")}
+            _clean_env = {
+                k: v for k, v in os.environ.items()
+                if k not in ("PYTHONHOME", "LD_LIBRARY_PATH", "PYTHONPATH")
+            }
+            _clean_env["PATH"] = (
+                "/product/bin:/system/bin:/system/xbin:/vendor/bin:/data/adb/magisk:"
+                "/data/adb/modules/cyber_gateway_network/bin:" + _clean_env.get("PATH", "")
+            )
             p = subprocess.run(
                 ["/system/bin/sh", "-c", wrapped],
                 capture_output=True,
@@ -101,11 +115,11 @@ def _run_host_shell(cmd: str, timeout: int = 15) -> str:
                 timeout=timeout,
                 env=_clean_env
             )
-            return p.stdout.strip()
+            return p.returncode, p.stdout.strip(), p.stderr.strip()
         except Exception as e:
-            return f"Error: {e}"
+            return -1, "", str(e)
     if not _ensure_adb():
-        return "Error: ADB connection unavailable"
+        return -1, "", "ADB connection unavailable"
     b64 = base64.b64encode(cmd.encode("utf-8")).decode("ascii")
     wrapped = f"echo '{b64}' | base64 -d | su"
     try:
@@ -116,9 +130,17 @@ def _run_host_shell(cmd: str, timeout: int = 15) -> str:
             timeout=timeout
         )
         out = p.stdout.replace("* daemon not running; starting now at tcp:5037 *\n", "").replace("* daemon started successfully *\n", "")
-        return out.strip()
+        return p.returncode, out.strip(), p.stderr.strip()
     except Exception as e:
-        return f"Error: {e}"
+        return -1, "", str(e)
+
+
+def _run_host_shell(cmd: str, timeout: int = 15) -> str:
+    """Run command on Android host natively (or via ADB) and return stdout (or Error string on exception)."""
+    rc, out, err = _run_host_shell_rc(cmd, timeout=timeout)
+    if rc == -1 and not out and err:
+        return f"Error: {err}"
+    return out
 
 
 def _get_traffic_stats():
@@ -268,8 +290,8 @@ def _update_traffic_accounting():
             if not parts:
                 continue
             dev = parts[0].rstrip(":")
-            # Target cellular WAN: rmnet_data* or rmnet* (excluding mhi/ipa)
-            if dev.startswith("rmnet_data") or (dev.startswith("rmnet") and not dev.startswith("rmnet_mhi") and not dev.startswith("rmnet_ipa")):
+            # Target cellular WAN: C.CELLULAR_IF or rmnet_data* / rmnet* (excluding mhi/ipa)
+            if dev == C.CELLULAR_IF or dev.startswith("rmnet_data") or (dev.startswith("rmnet") and not dev.startswith("rmnet_mhi") and not dev.startswith("rmnet_ipa")):
                 rx = int(parts[1])
                 tx = int(parts[9])
                 curr_bytes[dev] = (rx, tx)
@@ -526,7 +548,7 @@ def _parse_tag_output(raw: str) -> dict:
 
 
 def _get_system_status():
-    """Collect comprehensive K40S hardware, thermal, and network status."""
+    """Collect hardware, thermal, storage, interface, and service toggle status."""
     status = {}
 
     # 1. Battery & Power Thermals
@@ -543,23 +565,28 @@ def _get_system_status():
         current = read_file("/sys/class/power_supply/battery/current_now")
         voltage = read_file("/sys/class/power_supply/battery/voltage_now")
         batt_status = read_file("/sys/class/power_supply/battery/status")
-        health = read_file("/sys/class/power_supply/battery/health") or "Good"
+        health = read_file("/sys/class/power_supply/battery/health") or "N/A"
         charger_temp = read_file("/sys/class/power_supply/battery/charger_temp")
         cycle_count = read_file("/sys/class/power_supply/battery/cycle_count")
         charge_full = read_file("/sys/class/power_supply/battery/charge_full")
         charge_full_design = read_file("/sys/class/power_supply/battery/charge_full_design")
 
-        usb_present = read_file("/sys/class/power_supply/usb/present") == "1"
-        usb_type = read_file("/sys/class/power_supply/usb/type") or "USB"
+        usb_present_raw = read_file("/sys/class/power_supply/usb/present")
+        usb_present = (usb_present_raw == "1") if usb_present_raw != "" else None
+        usb_type_raw = read_file("/sys/class/power_supply/usb/type") or "N/A"
+        usb_volt_raw = read_file("/sys/class/power_supply/usb/voltage_now")
         pd_active = read_file("/sys/class/power_supply/usb/pd_active") == "1"
-        bypass_mode = read_file("/sys/class/power_supply/usb/enable_bypass_mode") == "1"
-        input_suspend = read_file("/sys/class/power_supply/battery/input_suspend") == "1"
+        bypass_raw = read_file("/sys/class/power_supply/usb/enable_bypass_mode")
+        suspend_raw = read_file("/sys/class/power_supply/battery/input_suspend")
+        bypass_mode = bypass_raw == "1"
+        input_suspend = suspend_raw == "1"
+        bypass_active = (bypass_mode or input_suspend) if (bypass_raw != "" or suspend_raw != "") else None
 
-        temp_c = round(float(temp) / 10.0, 1) if temp else 0.0
-        charger_temp_c = round(float(charger_temp) / 10.0, 1) if charger_temp else 0.0
-        current_ma = round(float(current) / 1000.0, 1) if current else 0.0
-        volt_v = round(float(voltage) / 1000000.0, 2) if voltage else 0.0
-        power_w = round(abs(current_ma * volt_v) / 1000.0, 2)
+        temp_c = round(float(temp) / 10.0, 1) if temp else None
+        charger_temp_c = round(float(charger_temp) / 10.0, 1) if charger_temp else None
+        current_ma = round(float(current) / 1000.0, 1) if current else None
+        volt_v = round(float(voltage) / 1000000.0, 2) if voltage else None
+        power_w = round(abs(current_ma * volt_v) / 1000.0, 2) if (current_ma is not None and volt_v is not None) else None
 
         # Determine human-readable status
         if bypass_mode or (usb_present and (input_suspend or batt_status == "Discharging")):
@@ -569,7 +596,8 @@ def _get_system_status():
             status_badge = "bypass"
         elif batt_status == "Charging":
             status_text = "极速快充" if pd_active else "正在充电"
-            status_desc = f"USB-PD 9V 快速充电中 (+{current_ma} mA)"
+            cur_str = f" (+{current_ma} mA)" if current_ma is not None else ""
+            status_desc = ("USB-PD 快速充电中" if pd_active else "正在充电中") + cur_str
             status_icon = "⚡"
             status_badge = "charging"
         elif batt_status == "Full":
@@ -582,36 +610,42 @@ def _get_system_status():
             status_desc = "达到充电上限，保护性停充"
             status_icon = "⏸️"
             status_badge = "not_charging"
-        else:
+        elif batt_status:
             status_text = "电池放电"
-            status_desc = f"纯电池供电中 (-{current_ma} mA)"
+            cur_str = f" (-{abs(current_ma)} mA)" if current_ma is not None else ""
+            status_desc = f"纯电池供电中{cur_str}"
             status_icon = "🔋"
             status_badge = "discharging"
+        else:
+            status_text = "N/A"
+            status_desc = "未读取到电池状态"
+            status_icon = "🔋"
+            status_badge = "unknown"
 
-        full_mah = round(int(charge_full) / 1000) if (charge_full and charge_full.isdigit()) else 3937
-        design_mah = round(int(charge_full_design) / 1000) if (charge_full_design and charge_full_design.isdigit()) else 4500
-        health_pct = round((full_mah / design_mah) * 100, 1) if (full_mah and design_mah) else 87.5
+        full_mah = round(int(charge_full) / 1000) if (charge_full and charge_full.isdigit()) else None
+        design_mah = round(int(charge_full_design) / 1000) if (charge_full_design and charge_full_design.isdigit()) else None
+        health_pct = round((full_mah / design_mah) * 100, 1) if (full_mah and design_mah) else None
 
         status["battery"] = {
-            "capacity": int(cap) if cap and cap.isdigit() else 0,
+            "capacity": int(cap) if (cap and cap.isdigit()) else None,
             "temp": temp_c,
             "charger_temp": charger_temp_c,
             "current_ma": current_ma,
             "voltage_v": volt_v,
             "power_w": power_w,
-            "status": batt_status or "Unknown",
+            "status": batt_status or "N/A",
             "status_text": status_text,
             "status_desc": status_desc,
             "status_icon": status_icon,
             "status_badge": status_badge,
             "health": health,
             "health_pct": health_pct,
-            "cycle_count": int(cycle_count) if (cycle_count and cycle_count.isdigit()) else 0,
+            "cycle_count": int(cycle_count) if (cycle_count and cycle_count.isdigit()) else None,
             "charge_full_mah": full_mah,
             "design_mah": design_mah,
             "usb_present": usb_present,
-            "usb_type": "USB-PD (9V)" if pd_active else usb_type,
-            "bypass_active": bypass_mode or input_suspend
+            "usb_type": f"USB-PD ({round(int(usb_volt_raw)/1000000)}V)" if (pd_active and usb_volt_raw.isdigit() and int(usb_volt_raw) >= 5000000) else ("USB-PD" if (pd_active or "PD" in usb_type_raw) else usb_type_raw),
+            "bypass_active": bypass_active
         }
     except Exception as e:
         status["battery"] = {"error": str(e)}
@@ -665,7 +699,7 @@ def _get_system_status():
         except Exception:
             pass
 
-        swappiness = 100
+        swappiness = None
         try:
             with open("/proc/sys/vm/swappiness", "r") as f:
                 swappiness = int(f.read().strip())
@@ -675,10 +709,10 @@ def _get_system_status():
         status["memory"] = {
             "total_ram_mb": total_ram,
             "used_ram_mb": used_ram,
-            "ram_percent": round((used_ram / total_ram * 100), 1) if total_ram else 0,
+            "ram_percent": round((used_ram / total_ram * 100), 1) if total_ram else None,
             "total_swap_mb": total_swap,
             "used_swap_mb": used_swap,
-            "swap_percent": round((used_swap / total_swap * 100), 1) if total_swap else 0,
+            "swap_percent": round((used_swap / total_swap * 100), 1) if total_swap else 0.0,
             "zram_total_mb": zram_total_mb,
             "zram_used_mb": zram_used_mb,
             "zram_prio": zram_prio,
@@ -701,45 +735,62 @@ def _get_system_status():
     except Exception:
         status["uptime"] = "N/A"
 
-    # 4. Network Interfaces
+    # 4. Network Interfaces (preserve multi-IP interfaces without overwriting)
     try:
         res = _run_host_shell("ip -o -4 addr show | awk '{print $2, $4}'")
         ips = {}
         for line in res.splitlines():
             parts = line.strip().split()
             if len(parts) == 2:
-                ips[parts[0]] = parts[1]
+                dev_name, ip_cidr = parts[0], parts[1]
+                if dev_name in ips:
+                    if ip_cidr not in ips[dev_name].split(", "):
+                        ips[dev_name] = f"{ips[dev_name]}, {ip_cidr}"
+                else:
+                    ips[dev_name] = ip_cidr
         status["interfaces"] = ips
+        wg_ip = ips.get("wg0", "").split(", ")[0].split("/")[0]
+        ts_ip = ips.get("tailscale0", "").split(", ")[0].split("/")[0]
+        status["vpn_ip"] = wg_ip or ts_ip or None
     except Exception:
         status["interfaces"] = {}
+        status["vpn_ip"] = None
 
-
-    # 4.5. Internal Storage (/sdcard)
+    # 4.5. Internal Storage (/sdcard or /data fallback)
     try:
         import shutil
-        total_s, used_s, free_s = shutil.disk_usage("/sdcard")
+        storage_path = "/sdcard" if os.path.exists("/sdcard") else "/data"
+        total_s, used_s, free_s = shutil.disk_usage(storage_path)
         status["storage"] = {
             "total_gb": round(total_s / (1024**3), 1),
             "used_gb": round(used_s / (1024**3), 1),
             "free_gb": round(free_s / (1024**3), 1),
-            "percent": round(used_s / total_s * 100, 1)
+            "percent": round(used_s / total_s * 100, 1) if total_s else None
         }
-    except Exception:
-        status["storage"] = {"total_gb": 106.0, "used_gb": 36.0, "free_gb": 70.0, "percent": 34.0}
+    except Exception as e:
+        status["storage"] = {"total_gb": None, "used_gb": None, "free_gb": None, "percent": None, "error": str(e)}
 
-    # 5. Core Toggles & Services Status (Fixed Robust Parser!)
+    # 5. Core Toggles & Services Status (config-wired & robust parser)
     try:
+        wd_base = os.path.basename(C.WATCHDOG_SCRIPT) if C.WATCHDOG_SCRIPT else "watchdog.sh"
+        wd_pat = "|".join(sorted({re.escape(wd_base), re.escape("50-net-keeper.sh")}))
+        cdrx_base = os.path.basename(C.ANTI_CDRX_SCRIPT) if C.ANTI_CDRX_SCRIPT else ""
+        cdrx_pat = r"ping -i 0\.[24]" + (f"|{re.escape(cdrx_base)}" if cdrx_base and cdrx_base != "service.sh" else "")
+        tc_bin = C.TC_CAKE_BIN or "tc"
+
         check_script = """
 echo "=== WATCHDOG ==="
-ps -ef | grep -E "watchdog.sh" | grep -v grep | awk '{print $2}'
+ps -ef | grep -E "(__WD_PAT__)" | grep -v grep | awk '{print $2}'
 echo "=== ANTI_CDRX ==="
-ps -ef | grep -E "ping -i 0.2" | grep -v grep | awk '{print $2}'
+ps -ef | grep -E "(__CDRX_PAT__)" | grep -v grep | awk '{print $2}'
 echo "=== ETH_TETHER ==="
 dumpsys tethering 2>/dev/null | grep -i "__ETH__ - TetheredState"
+echo "=== ETH_UDHCPD ==="
+ps -ef | grep -E "udhcpd" | grep -v grep | awk '{print $2}'
 echo "=== ETH_CARRIER ==="
 cat /sys/class/net/__ETH__/carrier 2>/dev/null || echo 0
 echo "=== WIFI_POWERSAVE ==="
-iw dev __STA__ get power_save 2>/dev/null
+iw dev __HOTSPOT__ get power_save 2>/dev/null || iw dev __STA__ get power_save 2>/dev/null
 echo "=== QOS_500B ==="
 iptables -t mangle -C POSTROUTING -p udp -m length --length 0:500 -j DSCP --set-dscp-class EF 2>/dev/null && echo "1" || echo "0"
 echo "=== QOS_CS2 ==="
@@ -749,42 +800,75 @@ settings get global private_dns_mode 2>/dev/null
 echo "=== TCP_ALGO ==="
 sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null
 echo "=== RPS_WLAN ==="
-cat /sys/class/net/__STA__/queues/rx-0/rps_cpus 2>/dev/null || echo "0"
+cat /sys/class/net/__HOTSPOT__/queues/rx-0/rps_cpus 2>/dev/null || cat /sys/class/net/__STA__/queues/rx-0/rps_cpus 2>/dev/null || echo "0"
 echo "=== CAKE_QDISC ==="
-tc qdisc show dev __CELL__ 2>/dev/null | head -n 1
+ACT_DEV=$(ip route show table all 2>/dev/null | grep -E "default .* dev (rmnet|__CELL__)" | head -n 1 | grep -oE "(rmnet_data[0-9]+|__CELL__)" | head -n 1)
+[ -z "$ACT_DEV" ] && ACT_DEV=$(ip -4 addr show 2>/dev/null | grep -E "inet .* (rmnet_data|__CELL__)" | grep -oE "(rmnet_data[0-9]+|__CELL__)" | head -n 1)
+[ -z "$ACT_DEV" ] && ACT_DEV="__CELL__"
+TC_BIN="__TC_BIN__"
+[ ! -x "$TC_BIN" ] && TC_BIN="tc"
+$TC_BIN qdisc show dev "$ACT_DEV" 2>/dev/null | head -n 1
 echo "=== HOTSPOT_ACT ==="
 ip -4 addr show __HOTSPOT__ 2>/dev/null | grep "inet "
 echo "=== WEBDAV_ACT ==="
-ps -ef | grep -E "webdav_server.py" | grep -v grep | awk '{print $2}'
+ps -ef | grep -E "(dufs|webdav_server\\.py)" | grep -v grep | awk '{print $2}'
 echo "=== WIFI_ON ==="
 settings get global wifi_on 2>/dev/null || echo 0
 """
         check_script = (check_script
+                        .replace("__WD_PAT__", wd_pat)
+                        .replace("__CDRX_PAT__", cdrx_pat)
                         .replace("__ETH__", C.ETH_IF)
                         .replace("__STA__", C.WIFI_STA_IF)
                         .replace("__CELL__", C.CELLULAR_IF)
-                        .replace("__HOTSPOT__", C.HOTSPOT_IF))
+                        .replace("__HOTSPOT__", C.HOTSPOT_IF)
+                        .replace("__TC_BIN__", tc_bin))
         raw = _run_host_shell(check_script)
         parsed = _parse_tag_output(raw)
+
+        eth_carrier = parsed.get("ETH_CARRIER", "0").strip() == "1"
+        eth_has_ip = bool(status["interfaces"].get(C.ETH_IF))
+        eth_tethered = (
+            f"{C.ETH_IF} - TetheredState" in parsed.get("ETH_TETHER", "")
+            or (eth_carrier and eth_has_ip and bool(parsed.get("ETH_UDHCPD")))
+        )
+
+        priv_dns = parsed.get("PRIV_DNS", "").strip()
+        tcp_algo = parsed.get("TCP_ALGO", "").strip()
+        cake_qdisc = parsed.get("CAKE_QDISC", "").strip()
 
         status["toggles"] = {
             "watchdog": bool(parsed.get("WATCHDOG")),
             "anti_cdrx": bool(parsed.get("ANTI_CDRX")),
-            "eth_tethered": f"{C.ETH_IF} - TetheredState" in parsed.get("ETH_TETHER", ""),
-            "eth_carrier": parsed.get("ETH_CARRIER", "0").strip() == "1",
+            "eth_tethered": eth_tethered,
+            "eth_carrier": eth_carrier,
             "wifi_master": parsed.get("WIFI_ON", "0").strip() == "1",
             "wifi_power_save": "on" in parsed.get("WIFI_POWERSAVE", "").lower(),
             "qos_500b": parsed.get("QOS_500B", "0").strip() == "1",
             "qos_cs2": parsed.get("QOS_CS2", "0").strip() == "1",
-            "private_dns": parsed.get("PRIV_DNS", "off").strip(),
-            "tcp_congestion": parsed.get("TCP_ALGO", "bbr3").strip(),
-            "rps_enabled": parsed.get("RPS_WLAN", "0").strip() == "70",
-            "cake_qdisc": parsed.get("CAKE_QDISC", "cake"),
+            "private_dns": priv_dns if priv_dns else "N/A",
+            "tcp_congestion": tcp_algo if tcp_algo else "N/A",
+            "rps_enabled": parsed.get("RPS_WLAN", "0").strip() not in ("", "0", "00"),
+            "cake_qdisc": cake_qdisc if cake_qdisc else "N/A",
             "hotspot_active": bool(parsed.get("HOTSPOT_ACT")),
             "webdav_active": bool(parsed.get("WEBDAV_ACT"))
         }
     except Exception as e:
         status["toggles"] = {"error": str(e)}
+
+    status["config"] = {
+        "webdav_port": C.WEBDAV_PORT,
+        "local_gateway_ip": C.LOCAL_GATEWAY_IP,
+        "local_domain_keyword": C.LOCAL_DOMAIN_KEYWORD,
+        "wallpaper_url": C.WALLPAPER_URL,
+        "wol_mac": C.WOL_MAC,
+        "hotspot_iface": C.HOTSPOT_IF,
+        "wifi_sta_iface": C.WIFI_STA_IF,
+        "eth_iface": C.ETH_IF,
+        "cellular_iface": C.CELLULAR_IF,
+        "controller_port": C.CONTROLLER_PORT,
+        "router_probe_url": C.ROUTER_PROBE_URL,
+    }
 
     return status
 
@@ -865,17 +949,8 @@ def _calc_ip_speed(ip, cur_bytes, direction):
         return "0.0 KB/s"
 
 def _get_clients_list():
-    """Parse local Hotspot & USB clients, traffic stats, and query Router clients if online."""
-    # 2026-10-16: 路由器探测节流——60s 内直接复用上次结果文件（断电时 3s 轮询不再卡 1s）
-    global _router_probe_skip
-    try:
-        if time.time() - _router_probe_skip < 60:
-            _skip_router = True
-        else:
-            _router_probe_skip = time.time()
-            _skip_router = False
-    except Exception:
-        _skip_router = False
+    """Parse local Hotspot & USB clients, traffic stats, and query Router clients if configured."""
+    global _router_probe_skip, _last_router_online, _last_router_msg, _last_router_clients
     clients = []
     blocked_macs = set()
     try:
@@ -888,14 +963,14 @@ def _get_clients_list():
     traffic_map = _get_conntrack_traffic_map()
     local_ips = set()
 
-    # 2026-10-16: 预读 udhcpd 租约建立 MAC->主机名 映射（终版：正向扫描）
-    # 真实结构（od 实证）：MAC 6B 紧邻 hostname 16B（前面是 expire/IP），记录 30B 步进但可变。
-    # 正向扫：找 ARP 表中每个 MAC 的字节序列，取其后 16B 内的最长可打印串为主机名。
+    # 预读 udhcpd 租约建立 MAC->主机名 映射
     _lease_names = {}
     try:
         with open("/data/local/tmp/udhcpd.leases", "rb") as _lf:
             _raw = _lf.read()
-        for _line in open("/proc/net/arp").readlines()[1:]:
+        with open("/proc/net/arp", "r") as _af:
+            arp_lines = _af.readlines()[1:]
+        for _line in arp_lines:
             _p = _line.split()
             if len(_p) < 4 or _p[3] == "00:00:00:00:00:00":
                 continue
@@ -906,14 +981,26 @@ def _get_clients_list():
                 continue
             _pos = _raw.find(_amacb)
             while _pos != -1:
-                _tail = _raw[_pos+6:_pos+22]
+                _tail = _raw[_pos + 6:_pos + 22]
                 _m2 = re.match(rb"[\x20-\x7e]{3,}", _tail.lstrip(b"\x00"))
                 if _m2:
                     _hn = _m2.group().decode("ascii", errors="replace").strip()
                     if len(_hn) >= 3:
                         _lease_names[_amac] = _hn
                         break
-                _pos = _raw.find(_amacb, _pos+1)
+                _pos = _raw.find(_amacb, _pos + 1)
+    except Exception:
+        pass
+
+    # 0.5 Parse active per-client hashlimit rules (cl_<ip>)
+    active_limits = {}
+    try:
+        raw_rules = _run_host_shell("iptables -S FORWARD 2>/dev/null | grep 'hashlimit-name cl_' || true")
+        for rline in raw_rules.splitlines():
+            m_ip = re.search(r"-s\s+(\d+\.\d+\.\d+\.\d+)", rline)
+            m_kb = re.search(r"--hashlimit-above\s+(\d+)kb/s", rline)
+            if m_ip and m_kb:
+                active_limits[m_ip.group(1)] = int(m_kb.group(1))
     except Exception:
         pass
 
@@ -927,26 +1014,25 @@ def _get_clients_list():
                 ip = parts[0]
                 mac = parts[3].lower()
                 dev = parts[5]
-                # 2026-10-16: 只算真正在线的设备——Flags 0x2=ATF_COM(已解析完成)，
-                # 0x0 是 STALE/过期残留；同此修掉"已连设备数量异常"
+                # Flags 0x2 = ATF_COM (已解析完成)，跳过 0x0 STALE 残留
                 if parts[2] != "0x2":
                     continue
                 if mac != "00:00:00:00:00:00" and not ip.startswith("127."):
                     local_ips.add(ip)
                     if dev == C.ETH_IF:
                         source = "🔌 USB直连路由"
-                    elif "wlan" in dev:
+                    elif dev == C.HOTSPOT_IF or "wlan" in dev:
                         source = "🔥 5G 热点"
                     else:
                         source = f"📱 {dev}"
 
-                    # 设备名优先级：DHCP租约主机名 > MAC厂商 > IP尾缀（不再做 DNS 反解，消除卡顿）
                     name = _lease_names.get(mac) or _get_mac_vendor(mac) or f"终端 ({ip.split('.')[-1]})"
 
                     t_info = traffic_map.get(ip, {"rx": 0, "tx": 0})
                     speed_rx = _calc_ip_speed(ip, t_info["rx"], "rx")
                     speed_tx = _calc_ip_speed(ip, t_info["tx"], "tx")
                     total_bytes = t_info["rx"] + t_info["tx"]
+                    limit_kbps = active_limits.get(ip, 0)
 
                     clients.append({
                         "name": name,
@@ -956,46 +1042,71 @@ def _get_clients_list():
                         "source": source,
                         "speed_rx": speed_rx,
                         "speed_tx": speed_tx,
-                        "total_traffic": _format_size(total_bytes) if total_bytes > 0 else "< 1 MB",
+                        "total_traffic": _format_size(total_bytes) if total_bytes > 0 else "0 B",
                         "status": "已阻断" if mac in blocked_macs else "在线",
-                        "blocked": mac in blocked_macs
+                        "blocked": mac in blocked_macs,
+                        "active_limit_kbps": limit_kbps,
+                        "limit_mbps": round(limit_kbps * 8 / 1024) if limit_kbps > 0 else 0,
                     })
     except Exception:
         pass
 
-    # 2. Query Router clients if router is reachable
-    router_online = False
-    router_msg = "上游路由器当前离线 (断电或未连接)"
-    try:
-        if _skip_router:
-            # 60s 节流窗口内：跳过阻塞探测（缓存超时后再探）
-            raise RuntimeError("router probe throttled")
-        import http.client as _hc
-        _conn = _hc.HTTPConnection("192.168.1.1", 80, timeout=1.0)
-        _conn.request("GET", "/cgi-bin/5g_clients", headers={"User-Agent": "CyberGate"})
-        resp = _conn.getresponse()
-        if resp.status == 200:
-            r_data = json.loads(resp.read().decode("utf-8"))
-            router_online = True
-            router_msg = "OpenWrt 路由器在线运转中"
-            for rc in r_data.get("clients", []):
-                r_ip = rc.get("ip", "")
-                if r_ip and r_ip not in local_ips:
-                    clients.append({
-                            "name": rc.get("hostname") or rc.get("name") or f"路由终端 ({r_ip.split('.')[-1]})",
-                            "ip": r_ip,
-                            "mac": rc.get("mac", "--").lower(),
-                            "interface": rc.get("interface", "br-lan"),
-                            "source": "🌐 路由器 Wi-Fi/LAN",
-                            "speed_rx": rc.get("speed_rx", "--"),
-                            "speed_tx": rc.get("speed_tx", "--"),
-                            "total_traffic": rc.get("total_traffic", "--"),
-                            "status": "在线",
-                            "blocked": False
-                        })
-    except Exception:
-        pass
+    # 2. Query Router clients if router_probe_url is configured (with proper 60s cache)
+    probe_url = (C.ROUTER_PROBE_URL or "").strip()
+    if not probe_url:
+        router_online = None
+        router_msg = "未配置上游路由器探测地址 (router_probe_url)"
+        extra_clients = []
+    else:
+        now = time.time()
+        if _last_router_online is None or (now - _router_probe_skip >= 60):
+            _router_probe_skip = now
+            new_extra = []
+            try:
+                import urllib.error
+                req = urllib.request.Request(probe_url, headers={"User-Agent": "CyberGate"})
+                try:
+                    with urllib.request.urlopen(req, timeout=1.5) as resp:
+                        raw_body = resp.read().decode("utf-8", errors="replace")
+                        _last_router_online = True
+                        _last_router_msg = "上游路由器在线运转中"
+                        try:
+                            r_data = json.loads(raw_body)
+                            if isinstance(r_data, dict):
+                                for rc in r_data.get("clients", []):
+                                    r_ip = rc.get("ip", "")
+                                    if r_ip:
+                                        new_extra.append({
+                                            "name": rc.get("hostname") or rc.get("name") or f"路由终端 ({r_ip.split('.')[-1]})",
+                                            "ip": r_ip,
+                                            "mac": rc.get("mac", "N/A").lower(),
+                                            "interface": rc.get("interface", "br-lan"),
+                                            "source": "🌐 路由器 Wi-Fi/LAN",
+                                            "speed_rx": rc.get("speed_rx", "N/A"),
+                                            "speed_tx": rc.get("speed_tx", "N/A"),
+                                            "total_traffic": rc.get("total_traffic", "N/A"),
+                                            "status": "在线",
+                                            "blocked": False
+                                        })
+                        except Exception:
+                            pass
+                except urllib.error.HTTPError as he:
+                    if he.code in (200, 301, 302, 401, 403, 404):
+                        _last_router_online = True
+                        _last_router_msg = "上游路由器在线运转中"
+                    else:
+                        _last_router_online = False
+                        _last_router_msg = f"上游路由器响应异常 (HTTP {he.code})"
+            except Exception:
+                _last_router_online = False
+                _last_router_msg = "上游路由器当前离线 (断电或未连接)"
+            _last_router_clients = new_extra
 
+        router_online = _last_router_online
+        router_msg = _last_router_msg
+        extra_clients = [rc for rc in _last_router_clients if rc.get("ip") not in local_ips]
+
+    clients.extend(extra_clients)
     return {
         "clients": clients,
         "router_online": router_online,
@@ -1003,21 +1114,34 @@ def _get_clients_list():
         "total_count": len(clients)
     }
 
+
 def _get_system_processes():
     """Extract CPU, RAM, GPU utilization and top process breakdown for performance monitor."""
+    cores = os.cpu_count()
+    if not cores:
+        try:
+            with open("/proc/cpuinfo", "r") as f:
+                cores = sum(1 for line in f if line.startswith("processor")) or None
+        except Exception:
+            cores = None
+
     data = {
-        "cpu": {"usage": 0, "load_1": "--", "load_5": "--", "load_15": "--", "cores": 8},
-        "memory": {"total_mb": 7613, "used_mb": 0, "free_mb": 0, "available_mb": 0, "swap_total_mb": 0, "swap_used_mb": 0},
-        "gpu": {"usage": 0, "freq_mhz": 0},
+        "cpu": {"usage": None, "load_1": "N/A", "load_5": "N/A", "load_15": "N/A", "cores": cores},
+        "memory": {"total_mb": None, "used_mb": None, "free_mb": None, "available_mb": None, "swap_total_mb": None, "swap_used_mb": None},
+        "gpu": {"usage": None, "freq_mhz": None},
         "processes": []
     }
 
-    # 1. GPU metrics (Adreno 650)
+    # 1. GPU metrics (Adreno kgsl when present)
     try:
         raw_busy = _run_host_shell("cat /sys/class/kgsl/kgsl-3d0/gpu_busy_percentage 2>/dev/null").strip()
-        data["gpu"]["usage"] = int(raw_busy.split()[0]) if raw_busy and raw_busy.split()[0].isdigit() else 0
+        if raw_busy:
+            b_tok = raw_busy.split()[0].rstrip("%")
+            if b_tok.isdigit():
+                data["gpu"]["usage"] = int(b_tok)
         raw_freq = _run_host_shell("cat /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq 2>/dev/null || cat /sys/class/kgsl/kgsl-3d0/gpuclk 2>/dev/null").strip()
-        data["gpu"]["freq_mhz"] = int(raw_freq) // 1000000 if raw_freq.isdigit() else 0
+        if raw_freq.isdigit():
+            data["gpu"]["freq_mhz"] = int(raw_freq) // 1000000
     except Exception:
         pass
 
@@ -1043,20 +1167,21 @@ def _get_system_processes():
                     v = parts[1].strip().split()[0]
                     if v.isdigit():
                         mem[k] = int(v) // 1024
-        total = mem.get("MemTotal", 7613)
-        free = mem.get("MemFree", 0)
-        avail = mem.get("MemAvailable", free)
-        used = max(0, total - avail)
-        swap_total = mem.get("SwapTotal", 0)
-        swap_free = mem.get("SwapFree", 0)
-        swap_used = max(0, swap_total - swap_free)
+        if "MemTotal" in mem:
+            total = mem["MemTotal"]
+            free = mem.get("MemFree", 0)
+            avail = mem.get("MemAvailable", free)
+            used = max(0, total - avail)
+            swap_total = mem.get("SwapTotal", 0)
+            swap_free = mem.get("SwapFree", 0)
+            swap_used = max(0, swap_total - swap_free)
 
-        data["memory"]["total_mb"] = total
-        data["memory"]["used_mb"] = used
-        data["memory"]["free_mb"] = free
-        data["memory"]["available_mb"] = avail
-        data["memory"]["swap_total_mb"] = swap_total
-        data["memory"]["swap_used_mb"] = swap_used
+            data["memory"]["total_mb"] = total
+            data["memory"]["used_mb"] = used
+            data["memory"]["free_mb"] = free
+            data["memory"]["available_mb"] = avail
+            data["memory"]["swap_total_mb"] = swap_total
+            data["memory"]["swap_used_mb"] = swap_used
     except Exception:
         pass
 
@@ -1069,8 +1194,10 @@ def _get_system_processes():
         "com.tencent.mm": "微信 (WeChat)",
         "com.tencent.mobileqq": "QQ",
         "com.topjohnwu.magisk": "Magisk 管理器",
+        "cybergate.py": "CyberGate WebUI 后台服务",
         "cpe_webui.py": "CyberGate WebUI 后台服务",
         "hotspot_guardian.py": "5G 热点自愈守护",
+        "50-net-keeper.sh": "网络底座自愈看护器",
         "watchdog.sh": "网络硬件防崩溃看门狗",
         "tailscaled": "Tailscale 穿透节点",
         "dnsmasq": "DNS / DHCP 路由解析",
@@ -1088,11 +1215,13 @@ def _get_system_processes():
         for line in lines[:8]:
             if "%cpu" in line:
                 m_idle = re.search(r"(\d+)%idle", line)
+                m_tot = re.search(r"(\d+)%cpu", line)
                 if m_idle:
                     idle = int(m_idle.group(1))
-                    total_cpu = 800 if "800%" in line else 100
-                    usage = max(0, min(100, int((total_cpu - idle) * 100 / total_cpu)))
-                    data["cpu"]["usage"] = usage
+                    total_cpu = int(m_tot.group(1)) if m_tot else ((cores or 1) * 100)
+                    if total_cpu > 0:
+                        usage = max(0, min(100, int((total_cpu - idle) * 100 / total_cpu)))
+                        data["cpu"]["usage"] = usage
 
         start_procs = False
         procs = []
@@ -1142,7 +1271,7 @@ def _get_system_processes():
                         "mem": mem_pct,
                         "res": res,
                         "status": "运行中" if status == "R" else ("休眠" if status == "S" else ("空闲" if status == "I" else status)),
-                        "can_kill": pid not in ("1", "0") and "cpe_webui" not in args
+                        "can_kill": pid not in ("1", "0") and "cybergate" not in args and "cpe_webui" not in args
                     })
         data["processes"] = procs
     except Exception:
@@ -1155,7 +1284,9 @@ def _kill_process(pid, pkg=None):
         pid = int(pid)
         if pid in (1, 0, os.getpid()):
             return {"success": False, "message": "无法结束关键系统进程或自身服务"}
-        _run_host_shell(f"kill -9 {pid}")
+        rc, out, err = _run_host_shell_rc(f"kill -9 {pid}")
+        if rc != 0:
+            return {"success": False, "message": err or out or f"kill -9 {pid} 失败 (rc={rc})"}
         if pkg and "." in pkg and "/" not in pkg:
             _run_host_shell(f"am force-stop {pkg} 2>/dev/null || true")
         return {"success": True, "message": f"进程 PID {pid} 已强制终止"}
@@ -1176,40 +1307,41 @@ def _get_cellular_deep_info():
             "sim_state": "未插卡 (ABSENT)",
             "operator": "未检测到 SIM 流量卡",
             "rat": "基带脱网待机",
-            "mcc_mnc": "--",
-            "band": "--",
-            "arfcn": "--",
-            "pci": "--",
-            "tac": "--",
-            "nci": "--",
-            "rsrp": "--",
-            "rsrq": "--",
-            "sinr": "--",
+            "mcc_mnc": "N/A",
+            "band": "N/A",
+            "arfcn": "N/A",
+            "pci": "N/A",
+            "tac": "N/A",
+            "nci": "N/A",
+            "rsrp": "N/A",
+            "rsrq": "N/A",
+            "sinr": "N/A",
             "level": 0,
-            "apn": "--",
-            "ip": "--",
-            "iface": "--",
+            "apn": "N/A",
+            "ip": "N/A",
+            "iface": "N/A",
             "message": "当前未插入 SIM 流量卡。插入 5G/4G 卡后将自动建立蜂窝射频连接。"
         }
 
     # Default empty cellular info (no fake data)
     info = {
         "sim_present": True,
-        "rat": "5G/4G 搜网中...",
-        "operator": "正在驻留网络...",
-        "mcc_mnc": "--",
-        "band": "--",
-        "arfcn": "--",
-        "pci": "--",
-        "tac": "--",
-        "nci": "--",
-        "rsrp": "--",
-        "rsrq": "--",
-        "sinr": "--",
-        "level": 0,
-        "apn": "--",
-        "ip": "--",
-        "iface": "--"
+        "sim_state": sim_state or "READY",
+        "rat": "N/A",
+        "operator": "N/A",
+        "mcc_mnc": "N/A",
+        "band": "N/A",
+        "arfcn": "N/A",
+        "pci": "N/A",
+        "tac": "N/A",
+        "nci": "N/A",
+        "rsrp": "N/A",
+        "rsrq": "N/A",
+        "sinr": "N/A",
+        "level": None,
+        "apn": "N/A",
+        "ip": "N/A",
+        "iface": "N/A"
     }
 
     try:
@@ -1218,16 +1350,19 @@ def _get_cellular_deep_info():
         net_type = _run_host_shell("getprop gsm.network.type").strip()
 
         if op_alpha:
-            info["operator"] = op_alpha
+            clean_op = op_alpha.split(",")[0].strip()
+            if clean_op:
+                info["operator"] = clean_op
         if op_numeric:
-            info["mcc_mnc"] = op_numeric
+            clean_num = op_numeric.split(",")[0].strip()
+            if clean_num:
+                info["mcc_mnc"] = clean_num
         if net_type:
-            info["rat"] = "5G NR (SA/NSA)" if "NR" in net_type.upper() else f"4G ({net_type})"
+            clean_type = net_type.split(",")[0].strip()
+            if clean_type:
+                info["rat"] = "5G NR (SA/NSA)" if "NR" in clean_type.upper() else f"4G ({clean_type})"
 
-        # 1. Try finding mRegistered=YES cell info (5G NR first, then 4G LTE)
-        # 2026-10-16 修复：registry 含多个 CellInfoNr 块（空SIM槽填 MAX_INT），且嵌套 {}
-        # 令原非贪婪正则在 mAdditionalPlmns = {} 提前截断——解析恒失败。
-        # 新策略：遍历所有已注册 NR 块，取含有效 ssRsrp（-140..-30）的那个。
+        # 遍历所有已注册 NR 块，取含有效 ssRsrp（-140..-30）的那个
         reg_nr = None
         for _blk in re.finditer(r"CellInfoNr:\{ mRegistered=YES(.*?)CellSignalStrengthNr:\{(.*?)\} \}", raw, re.DOTALL):
             _sig = _blk.group(2)
@@ -1241,17 +1376,22 @@ def _get_cellular_deep_info():
             info["rat"] = "5G NR (SA 独立组网)"
             target_block = reg_nr.group(1) + " " + reg_nr.group(2)
             pci_m = re.search(r"mPci\s*=\s*(\d+)", target_block)
-            if pci_m and int(pci_m.group(1)) < 10000:
+            if pci_m and 0 < int(pci_m.group(1)) < 10000:
                 info["pci"] = int(pci_m.group(1))
             tac_m = re.search(r"mTac\s*=\s*(\d+)", target_block)
-            if tac_m and int(tac_m.group(1)) < 20000000:
+            if tac_m and 0 < int(tac_m.group(1)) < 20000000:
                 info["tac"] = int(tac_m.group(1))
+            nci_m = re.search(r"m(?:Nci|Ci)\s*=\s*(\d+)", target_block)
+            if nci_m and int(nci_m.group(1)) not in (0, 2147483647):
+                info["nci"] = int(nci_m.group(1))
             arfcn_m = re.search(r"mNrArfcn\s*=\s*(\d+)", target_block)
-            if arfcn_m and int(arfcn_m.group(1)) < 20000000:
+            if arfcn_m and 0 < int(arfcn_m.group(1)) < 20000000:
                 info["arfcn"] = int(arfcn_m.group(1))
             bands_m = re.search(r"mBands\s*=\s*\[(.*?)\]", target_block)
             if bands_m and bands_m.group(1).strip():
-                info["band"] = f"n{bands_m.group(1).strip()}"
+                b_val = bands_m.group(1).strip()
+                if b_val not in ("0", "2147483647"):
+                    info["band"] = f"n{b_val}"
             rsrp_m = re.search(r"ssRsrp\s*=\s*(-?\d+)", target_block)
             if rsrp_m and -140 <= int(rsrp_m.group(1)) <= -30:
                 info["rsrp"] = int(rsrp_m.group(1))
@@ -1262,33 +1402,47 @@ def _get_cellular_deep_info():
             if sinr_m and -20 <= int(sinr_m.group(1)) <= 50:
                 info["sinr"] = int(sinr_m.group(1))
             level_m = re.search(r"level\s*=\s*(\d+)", target_block)
-            if level_m:
-                info["level"] = min(4, int(level_m.group(1)))
+            if level_m and int(level_m.group(1)) <= 4:
+                info["level"] = int(level_m.group(1))
         elif reg_lte:
             info["rat"] = "4G LTE"
             target_block = reg_lte.group(1)
-            pci_m = re.search(r"mCi\s*=\s*(\d+)", target_block)
-            if pci_m:
-                info["nci"] = int(pci_m.group(1))
+            nci_m = re.search(r"mCi\s*=\s*(\d+)", target_block)
+            if nci_m and int(nci_m.group(1)) not in (0, 2147483647):
+                info["nci"] = int(nci_m.group(1))
             pci_val = re.search(r"mPci\s*=\s*(\d+)", target_block)
-            if pci_val:
+            if pci_val and int(pci_val.group(1)) not in (0, 2147483647):
                 info["pci"] = int(pci_val.group(1))
+            tac_m = re.search(r"mTac\s*=\s*(\d+)", target_block)
+            if tac_m and int(tac_m.group(1)) not in (0, 2147483647):
+                info["tac"] = int(tac_m.group(1))
             earfcn_m = re.search(r"mEarfcn\s*=\s*(\d+)", target_block)
-            if earfcn_m:
+            if earfcn_m and int(earfcn_m.group(1)) not in (0, 2147483647):
                 info["arfcn"] = int(earfcn_m.group(1))
+            bands_m = re.search(r"mBands\s*=\s*\[(.*?)\]", target_block)
+            if bands_m and bands_m.group(1).strip():
+                b_val = bands_m.group(1).strip()
+                if b_val not in ("0", "2147483647"):
+                    info["band"] = f"B{b_val}"
             rsrp_m = re.search(r"rsrp\s*=\s*(-?\d+)", target_block)
             if rsrp_m and -140 <= int(rsrp_m.group(1)) <= -30:
                 info["rsrp"] = int(rsrp_m.group(1))
+            rsrq_m = re.search(r"rsrq\s*=\s*(-?\d+)", target_block)
+            if rsrq_m and -30 <= int(rsrq_m.group(1)) <= 10:
+                info["rsrq"] = int(rsrq_m.group(1))
             rssnr_m = re.search(r"rssnr\s*=\s*(-?\d+)", target_block)
-            if rssnr_m:
+            if rssnr_m and -20 <= int(rssnr_m.group(1)) <= 50:
                 info["sinr"] = int(rssnr_m.group(1))
+            level_m = re.search(r"level\s*=\s*(\d+)", target_block)
+            if level_m and int(level_m.group(1)) <= 4:
+                info["level"] = int(level_m.group(1))
         else:
             # Fallback to Phone Id=0 section
             top_chunk = raw.split("notifyServiceStateForSubscriber")[0] if "notifyServiceStateForSubscriber" in raw else raw[:5000]
             cid_m = re.search(r"mCellIdentity=CellIdentity(Nr|Lte):\{([^}]+)\}", top_chunk)
             if cid_m:
                 ctype = "5G NR" if cid_m.group(1) == "Nr" else "4G LTE"
-                info["rat"] = ctype
+                info["rat"] = "5G NR (SA 独立组网)" if cid_m.group(1) == "Nr" else "4G LTE"
                 c_body = cid_m.group(2)
                 pci_m = re.search(r"mPci\s*=\s*(\d+)", c_body)
                 if pci_m and int(pci_m.group(1)) not in (0, 2147483647):
@@ -1299,25 +1453,118 @@ def _get_cellular_deep_info():
                 tac_m = re.search(r"mTac\s*=\s*(\d+)", c_body)
                 if tac_m and int(tac_m.group(1)) not in (0, 2147483647):
                     info["tac"] = int(tac_m.group(1))
+                nci_m = re.search(r"m(?:Nci|Ci)\s*=\s*(\d+)", c_body)
+                if nci_m and int(nci_m.group(1)) not in (0, 2147483647):
+                    info["nci"] = int(nci_m.group(1))
                 band_m = re.search(r"mBands\s*=\s*\[(.*?)\]", c_body)
                 if band_m and band_m.group(1).strip():
-                    info["band"] = f"n{band_m.group(1).strip()}" if ctype == "5G NR" else f"B{band_m.group(1).strip()}"
+                    b_val = band_m.group(1).strip()
+                    if b_val not in ("0", "2147483647"):
+                        info["band"] = f"n{b_val}" if ctype == "5G NR" else f"B{b_val}"
 
-        # Carrier branding fallback from raw dump if prop missing
-        if info["operator"] in ("正在驻留网络...", ""):
-            if "CHN-CT" in raw or "China Telecom" in raw or "46011" in raw:
+            # Parse signal strength from Phone Id=0 section
+            nr_sig = re.search(r"CellSignalStrengthNr:\{\s*([^}]+)\}", top_chunk)
+            if nr_sig:
+                sig_body = nr_sig.group(1)
+                rsrp_m = re.search(r"ssRsrp\s*=\s*(-?\d+)", sig_body)
+                if rsrp_m and -140 <= int(rsrp_m.group(1)) <= -30:
+                    info["rsrp"] = int(rsrp_m.group(1))
+                rsrq_m = re.search(r"ssRsrq\s*=\s*(-?\d+)", sig_body)
+                if rsrq_m and -30 <= int(rsrq_m.group(1)) <= 10:
+                    info["rsrq"] = int(rsrq_m.group(1))
+                sinr_m = re.search(r"ssSinr\s*=\s*(-?\d+)", sig_body)
+                if sinr_m and -20 <= int(sinr_m.group(1)) <= 50:
+                    info["sinr"] = int(sinr_m.group(1))
+                level_m = re.search(r"level\s*=\s*(\d+)", sig_body)
+                if level_m and int(level_m.group(1)) <= 4:
+                    info["level"] = int(level_m.group(1))
+
+            if info["rsrp"] == "N/A":
+                lte_sig = re.search(r"CellSignalStrengthLte:\s*([^,\n}]+(?:,[^,\n}]+)*)", top_chunk)
+                if lte_sig:
+                    sig_body = lte_sig.group(1)
+                    rsrp_m = re.search(r"rsrp\s*=\s*(-?\d+)", sig_body)
+                    if rsrp_m and -140 <= int(rsrp_m.group(1)) <= -30:
+                        info["rsrp"] = int(rsrp_m.group(1))
+                    rsrq_m = re.search(r"rsrq\s*=\s*(-?\d+)", sig_body)
+                    if rsrq_m and -30 <= int(rsrq_m.group(1)) <= 10:
+                        info["rsrq"] = int(rsrq_m.group(1))
+                    sinr_m = re.search(r"rssnr\s*=\s*(-?\d+)", sig_body)
+                    if sinr_m and -20 <= int(sinr_m.group(1)) <= 50:
+                        info["sinr"] = int(sinr_m.group(1))
+                    level_m = re.search(r"level\s*=\s*(\d+)", sig_body)
+                    if level_m and int(level_m.group(1)) <= 4:
+                        info["level"] = int(level_m.group(1))
+
+        # Extract APN, Interface, and cellular IP
+        top_chunk = raw.split("notifyServiceStateForSubscriber")[0] if "notifyServiceStateForSubscriber" in raw else raw[:5000]
+        apn_m = re.search(r"APN Setting:\s*\[ApnSetting\]\s*([^,]+),\s*\d+,\s*\d+,\s*([^,\s]+)", top_chunk)
+        if apn_m:
+            info["apn"] = apn_m.group(2).strip()
+        iface_m = re.search(r"InterfaceName:\s*([A-Za-z0-9_]+)", top_chunk)
+        if iface_m:
+            info["iface"] = iface_m.group(1).strip()
+        link_ip_m = re.search(r"LinkAddresses:\s*\[\s*([0-9.]+)/\d+", top_chunk)
+        if link_ip_m:
+            info["ip"] = link_ip_m.group(1).strip()
+        elif info["iface"] != "N/A":
+            rm_ip = _run_host_shell(f"ip -4 addr show {info['iface']} 2>/dev/null | grep -oE 'inet [0-9.]+' | cut -d' ' -f2").strip()
+            if rm_ip:
+                info["ip"] = rm_ip
+
+        # Carrier branding mapping (no fake fallback)
+        cur_op = info["operator"].rstrip(",").strip()
+        cur_plmn = info["mcc_mnc"].rstrip(",").strip()
+        if cur_plmn.startswith(("46011", "46003", "46005")) or "CHN-CT" in cur_op or cur_op == "CT" or "China Telecom" in cur_op:
+            info["operator"] = "中国电信 (China Telecom)"
+            info["mcc_mnc"] = "460-11"
+        elif cur_plmn.startswith(("46000", "46002", "46004", "46007", "46008")) or "CMCC" in cur_op or "China Mobile" in cur_op:
+            info["operator"] = "中国移动 (China Mobile)"
+            info["mcc_mnc"] = "460-00"
+        elif cur_plmn.startswith(("46001", "46006", "46009", "46010")) or "CUCC" in cur_op or "UNICOM" in cur_op or "China Unicom" in cur_op:
+            info["operator"] = "中国联通 (China Unicom)"
+            info["mcc_mnc"] = "460-01"
+        elif cur_plmn.startswith("46015") or "CBN" in cur_op or "China Broadnet" in cur_op:
+            info["operator"] = "中国广电 (China Broadnet)"
+            info["mcc_mnc"] = "460-15"
+        elif cur_op and cur_op != "N/A":
+            info["operator"] = cur_op
+        else:
+            if "CHN-CT" in top_chunk or "46011" in top_chunk:
                 info["operator"] = "中国电信 (China Telecom)"
                 info["mcc_mnc"] = "460-11"
-            elif "CMCC" in raw or "China Mobile" in raw or "46000" in raw:
+            elif "CMCC" in top_chunk or "46000" in top_chunk:
                 info["operator"] = "中国移动 (China Mobile)"
                 info["mcc_mnc"] = "460-00"
-            elif "CUCC" in raw or "China Unicom" in raw or "46001" in raw:
+            elif "CUCC" in top_chunk or "46001" in top_chunk:
                 info["operator"] = "中国联通 (China Unicom)"
                 info["mcc_mnc"] = "460-01"
 
     except Exception:
         pass
     return info
+
+
+def _parse_cell_operator(text_block: str, alpha_m) -> str:
+    if "46000" in text_block or "CMCC" in text_block:
+        return "中国移动 (China Mobile)"
+    if "46001" in text_block or "CUCC" in text_block or "UNICOM" in text_block:
+        return "中国联通 (China Unicom)"
+    if "46011" in text_block or "CHN-CT" in text_block or "China Telecom" in text_block:
+        return "中国电信 (China Telecom)"
+    if "46015" in text_block or "CBN" in text_block:
+        return "中国广电 (China Broadnet)"
+    if alpha_m and alpha_m.group(1) not in ("null", ""):
+        raw_alpha = alpha_m.group(1).rstrip(",").strip()
+        if raw_alpha in ("CHN-CT", "CT"):
+            return "中国电信 (China Telecom)"
+        if raw_alpha == "CMCC":
+            return "中国移动 (China Mobile)"
+        if raw_alpha == "CUCC":
+            return "中国联通 (China Unicom)"
+        if raw_alpha:
+            return raw_alpha
+    return "N/A"
 
 
 def _scan_nearby_cells(mode="all"):
@@ -1353,37 +1600,45 @@ def _scan_nearby_cells(mode="all"):
         nci_m = re.search(r"m(?:Nci|Ci)\s*=\s*(\d+)", content)
         alpha_m = re.search(r"mAlphaLong\s*=\s*([^\s,}]+)", content)
 
-        pci = int(pci_m.group(1)) if pci_m else 0
-        arfcn = int(arfcn_m.group(1)) if arfcn_m else 0
+        pci = int(pci_m.group(1)) if (pci_m and int(pci_m.group(1)) not in (0, 2147483647)) else 0
+        arfcn = int(arfcn_m.group(1)) if (arfcn_m and int(arfcn_m.group(1)) not in (0, 2147483647)) else 0
 
-        rsrp_str = "--"
-        sinr_str = "--"
+        rsrp_str = "N/A"
+        sinr_str = "N/A"
         if sig_match:
             sig_content = sig_match.group(1)
-            rsrp_m = re.search(r"(?:ssRsrp|rsrp)\s*=\s*(-?\d+)", sig_content)
-            sinr_m = re.search(r"(?:ssSinr|rssnr)\s*=\s*(-?\d+)", sig_content)
-            if rsrp_m and rsrp_m.group(1) not in ("2147483647", "-140", "0"):
+            if ctype == "5G NR":
+                nr_sub = re.search(r"CellSignalStrengthNr:\{\s*([^}]+)\}", sig_content)
+                target_sig = nr_sub.group(1) if nr_sub else sig_content
+                rsrp_m = re.search(r"ssRsrp\s*=\s*(-?\d+)", target_sig)
+                sinr_m = re.search(r"ssSinr\s*=\s*(-?\d+)", target_sig)
+            else:
+                lte_sub = re.search(r"CellSignalStrengthLte:\s*([^,\n}]+(?:,[^,\n}]+)*)", sig_content)
+                target_sig = lte_sub.group(1) if lte_sub else sig_content
+                rsrp_m = re.search(r"rsrp\s*=\s*(-?\d+)", target_sig)
+                sinr_m = re.search(r"rssnr\s*=\s*(-?\d+)", target_sig)
+            if rsrp_m and -140 <= int(rsrp_m.group(1)) <= -30:
                 rsrp_str = f"{rsrp_m.group(1)} dBm"
-            if sinr_m and sinr_m.group(1) not in ("2147483647", "-20"):
+            if sinr_m and -20 <= int(sinr_m.group(1)) <= 50:
                 sinr_str = f"{sinr_m.group(1)} dB"
 
-        band_str = f"n{band_m.group(1)}" if (band_m and ctype == "5G NR") else (f"B{band_m.group(1)}" if band_m else "n78")
-        op_name = "中国电信 (CT)"
-        if "46000" in content or "CMCC" in content:
-            op_name = "中国移动 (CM)"
-        elif "46001" in content or "CUCC" in content or "UNICOM" in content:
-            op_name = "中国联通 (CU)"
-        elif alpha_m and alpha_m.group(1) != "null":
-            op_name = alpha_m.group(1)
+        b_raw = band_m.group(1).strip() if band_m else ""
+        if b_raw and b_raw not in ("0", "2147483647"):
+            band_str = f"n{b_raw}" if ctype == "5G NR" else f"B{b_raw}"
+        else:
+            band_str = "N/A"
+        op_name = _parse_cell_operator(content, alpha_m)
+        tac_val = int(tac_m.group(1)) if (tac_m and int(tac_m.group(1)) not in (0, 2147483647)) else "N/A"
+        nci_val = int(nci_m.group(1)) if (nci_m and int(nci_m.group(1)) not in (0, 2147483647)) else "N/A"
 
         if pci > 0 and (mode == "all" or (mode == "nr" and ctype == "5G NR") or (mode == "lte" and ctype == "4G LTE")):
             cells.append({
                 "type": ctype,
                 "registered": True,
                 "pci": pci,
-                "arfcn": arfcn,
-                "tac": int(tac_m.group(1)) if tac_m else "--",
-                "nci": int(nci_m.group(1)) if nci_m else "--",
+                "arfcn": arfcn if arfcn > 0 else "N/A",
+                "tac": tac_val,
+                "nci": nci_val,
                 "band": band_str,
                 "rsrp": rsrp_str,
                 "sinr": sinr_str,
@@ -1406,31 +1661,31 @@ def _scan_nearby_cells(mode="all"):
         alpha_m = re.search(r"mAlphaLong\s*=\s*([^\s,}]+)", body)
 
         pci = int(pci_m.group(1)) if pci_m else 0
-        arfcn = int(arfcn_m.group(1)) if arfcn_m else 0
+        arfcn = int(arfcn_m.group(1)) if (arfcn_m and int(arfcn_m.group(1)) not in (0, 2147483647)) else 0
         if pci <= 0 or pci >= 1024 or (ctype, pci, arfcn) in seen:
             continue
         seen.add((ctype, pci, arfcn))
 
-        rsrp_str = f"{rsrp_m.group(1)} dBm" if rsrp_m and rsrp_m.group(1) not in ("2147483647", "-140", "0") else "--"
-        sinr_str = f"{sinr_m.group(1)} dB" if sinr_m and sinr_m.group(1) not in ("2147483647", "-20") else "--"
-        band_str = f"n{band_m.group(1)}" if (band_m and ctype == "5G NR") else (f"B{band_m.group(1)}" if band_m else "n78")
+        rsrp_str = f"{rsrp_m.group(1)} dBm" if (rsrp_m and -140 <= int(rsrp_m.group(1)) <= -30) else "N/A"
+        sinr_str = f"{sinr_m.group(1)} dB" if (sinr_m and -20 <= int(sinr_m.group(1)) <= 50) else "N/A"
+        b_raw = band_m.group(1).strip() if band_m else ""
+        if b_raw and b_raw not in ("0", "2147483647"):
+            band_str = f"n{b_raw}" if ctype == "5G NR" else f"B{b_raw}"
+        else:
+            band_str = "N/A"
 
-        op_name = "中国电信 (CT)"
-        if "46000" in body or "CMCC" in body:
-            op_name = "中国移动 (CM)"
-        elif "46001" in body or "CUCC" in body or "UNICOM" in body:
-            op_name = "中国联通 (CU)"
-        elif alpha_m and alpha_m.group(1) != "null":
-            op_name = alpha_m.group(1)
+        op_name = _parse_cell_operator(body, alpha_m)
+        tac_val = int(tac_m.group(1)) if (tac_m and int(tac_m.group(1)) not in (0, 2147483647)) else "N/A"
+        nci_val = int(nci_m.group(1)) if (nci_m and int(nci_m.group(1)) not in (0, 2147483647)) else "N/A"
 
         if mode == "all" or (mode == "nr" and ctype == "5G NR") or (mode == "lte" and ctype == "4G LTE"):
             cells.append({
                 "type": ctype,
                 "registered": False,
                 "pci": pci,
-                "arfcn": arfcn,
-                "tac": int(tac_m.group(1)) if tac_m else "--",
-                "nci": int(nci_m.group(1)) if nci_m else "--",
+                "arfcn": arfcn if arfcn > 0 else "N/A",
+                "tac": tac_val,
+                "nci": nci_val,
                 "band": band_str,
                 "rsrp": rsrp_str,
                 "sinr": sinr_str,
@@ -1443,7 +1698,6 @@ def _scan_nearby_cells(mode="all"):
         "cells": cells,
         "count": len(cells)
     }
-
 
 
 def _get_wifi_list():
@@ -1460,8 +1714,6 @@ def _get_wifi_list():
         line_str = line.strip()
         if not line_str:
             continue
-        # Pattern: BSSID FREQ RSSI FLAGS SSID
-        # Match BSSID (17 chars)
         m = re.match(r"^([0-9a-fA-F:]{17})\s+(\d+)\s+([-\d]+(?:\([^\)]+\))?)\s+([\d\.]+)\s+(.*?)\s+((?:\[[^\]]+\])+)$", line_str)
         if m:
             bssid = m.group(1)
@@ -1478,10 +1730,13 @@ def _get_wifi_list():
             else:
                 continue
 
-        # Extract numeric RSSI
         num_rssi_m = re.search(r"(-\d+)", rssi_str)
-        rssi_num = int(num_rssi_m.group(1)) if num_rssi_m else -75
-        quality = min(100, max(0, int(2 * (rssi_num + 100))))
+        if num_rssi_m:
+            rssi_num = int(num_rssi_m.group(1))
+            quality = min(100, max(0, int(2 * (rssi_num + 100))))
+        else:
+            rssi_num = None
+            quality = None
 
         sec = "Open"
         if "WPA3" in flags:
@@ -1503,70 +1758,89 @@ def _get_wifi_list():
                 "quality": quality,
                 "security": sec
             })
-    networks.sort(key=lambda x: x["quality"], reverse=True)
+    networks.sort(key=lambda x: x["quality"] if x["quality"] is not None else -1, reverse=True)
     return networks
 
 
+def _freq_to_channel(freq_mhz: int):
+    if 2412 <= freq_mhz <= 2472:
+        return (freq_mhz - 2407) // 5
+    if freq_mhz == 2484:
+        return 14
+    if 5000 <= freq_mhz <= 5895:
+        return (freq_mhz - 5000) // 5
+    if 5955 <= freq_mhz <= 7115:
+        return (freq_mhz - 5950) // 5
+    return None
+
+
 def _get_hotspot_details():
-    """Read SoftAP configuration from XML and schedule settings."""
+    """Read SoftAP configuration from XML, live iw state, and schedule settings."""
     details = {
-        "ssid": "CyberGate",
-        "passphrase": "",
-        "security_type": 2,
-        "band": 2,  # 1=2.4GHz, 2=5GHz
-        "ax_enabled": True,
-        "auto_shutdown": True,
+        "ssid": None,
+        "passphrase": None,
+        "security_type": None,
+        "band": None,
+        "channel": None,
+        "ax_enabled": None,
+        "auto_shutdown": None,
         "active": False,
-        "ip": "",
-        "schedule": {
-            "enabled": True,
-            "always_on": False,
-            "auto_heal": True,
-            "start_time": "23:00",
-            "end_time": "07:00",
-            "days": [7, 1, 2, 3, 4]  # 周日~周四 23:00~次日07:00开启，周五周六不断电保持关闭
-        }
+        "ip": None,
+        "live_ssid": None,
+        "live_channel": None,
+        "schedule": None,
     }
 
     try:
-        xml_raw = _run_host_shell(f"cat {SOFTAP_XML}")
-        root = ET.fromstring(xml_raw)
-        softap = root.find("SoftAp")
-        if softap is not None:
-            for el in softap:
-                name = el.attrib.get("name")
-                if name == "WifiSsid":
-                    details["ssid"] = el.text.strip('"') if el.text else "CyberGate"
-                elif name == "Passphrase":
-                    details["passphrase"] = el.text or ""
-                elif name == "SecurityType":
-                    details["security_type"] = int(el.attrib.get("value", 2))
-                elif name == "80211axEnabled":
-                    details["ax_enabled"] = el.attrib.get("value", "true") == "true"
-                elif name == "AutoShutdownEnabled":
-                    details["auto_shutdown"] = el.attrib.get("value", "true") == "true"
-                elif el.tag == "BandChannelMap" or name == "BandChannelMap":
-                    # 2026-10-16 修复：<BandChannelMap> 标签本身无 name 属性（此前按
-                    # name 匹配永不命中，band/channel 一直是默认值假象）。改按 tag 匹配。
-                    bc = el.find("BandChannel")
-                    if bc is not None:
-                        band_el = bc.find("int[@name='Band']")
-                        if band_el is not None:
-                            details["band"] = int(band_el.attrib.get("value", 2))
-                        # 回读锁定信道（0=ACS 自动），形成 save/get 闭环
-                        chan_el = bc.find("int[@name='Channel']")
-                        if chan_el is not None:
-                            details["channel"] = int(chan_el.attrib.get("value", 0))
+        xml_raw = _run_host_shell(f"cat {SOFTAP_XML} 2>/dev/null")
+        if xml_raw and "<WifiConfigStoreData" in xml_raw:
+            root = ET.fromstring(xml_raw)
+            softap = root.find("SoftAp")
+            if softap is not None:
+                for el in softap:
+                    name = el.attrib.get("name")
+                    if name == "WifiSsid":
+                        details["ssid"] = el.text.strip('"') if el.text else None
+                    elif name == "Passphrase":
+                        details["passphrase"] = el.text or ""
+                    elif name == "SecurityType":
+                        details["security_type"] = int(el.attrib.get("value", 2))
+                    elif name == "80211axEnabled":
+                        details["ax_enabled"] = el.attrib.get("value", "true") == "true"
+                    elif name == "AutoShutdownEnabled":
+                        details["auto_shutdown"] = el.attrib.get("value", "true") == "true"
+                    elif el.tag == "BandChannelMap" or name == "BandChannelMap":
+                        bc = el.find("BandChannel")
+                        if bc is not None:
+                            band_el = bc.find("int[@name='Band']")
+                            if band_el is not None:
+                                details["band"] = int(band_el.attrib.get("value", 2))
+                            chan_el = bc.find("int[@name='Channel']")
+                            if chan_el is not None:
+                                details["channel"] = int(chan_el.attrib.get("value", 0))
     except Exception:
         pass
 
-    # Check active state
-    ip_raw = _run_host_shell("ip -4 addr show " + C.HOTSPOT_IF + " 2>/dev/null | grep 'inet ' | awk '{print $2}'")
+    # Check live interface state and actual running SoftAP SSID/channel (honest reporting)
+    ip_raw = _run_host_shell(f"ip -4 addr show {C.HOTSPOT_IF} 2>/dev/null | grep 'inet ' | awk '{{print $2}}'")
     if ip_raw:
         details["active"] = True
-        details["ip"] = ip_raw.strip()
+        details["ip"] = ", ".join(line.strip() for line in ip_raw.splitlines() if line.strip())
 
-    # Read schedule
+    iw_info = _run_host_shell(f"iw dev {C.HOTSPOT_IF} info 2>/dev/null")
+    if iw_info:
+        m_ssid = re.search(r"^\s*ssid\s+(.+)$", iw_info, re.MULTILINE)
+        if m_ssid:
+            details["live_ssid"] = m_ssid.group(1).strip()
+        m_ch = re.search(r"^\s*channel\s+(\d+)", iw_info, re.MULTILINE)
+        if m_ch:
+            details["live_channel"] = int(m_ch.group(1))
+        else:
+            m_freq = re.search(r"\((\d+)\s*MHz\)", iw_info)
+            if m_freq:
+                details["live_channel"] = _freq_to_channel(int(m_freq.group(1)))
+
+    # Read schedule if present
     try:
         if os.path.exists(SCHEDULE_JSON):
             with open(SCHEDULE_JSON, "r") as f:
@@ -1578,23 +1852,36 @@ def _get_hotspot_details():
 
 
 def _save_hotspot_details(data: dict):
-    """Update SoftAp XML and restart SoftAp if needed."""
-    ssid = data.get("ssid", "")
-    passphrase = data.get("passphrase", "")
-    band = int(data.get("band", 3))
-    # 支持锁定具体信道（0=ACS 自动）。按环境扫描结果选干净信道，5GHz+80MHz 吞吐延迟均衡
-    channel = int(data.get("channel", 0))
+    """Update SoftAp XML and optional schedule settings."""
+    from xml.sax.saxutils import escape as xml_escape
+
+    ssid = str(data.get("ssid") or "").strip()
+    if not ssid:
+        return {"success": False, "message": "热点名称 (SSID) 不能为空"}
+    passphrase = str(data.get("passphrase") or "")
+    band = int(data.get("band") or 2)
+    channel = int(data.get("channel") or 0)
     ax = "true" if data.get("ax_enabled", True) else "false"
     auto_shut = "true" if data.get("auto_shutdown", True) else "false"
+
+    # Preserve existing PersistentRandomizedMacAddress from device XML if present (no hardcoded personal MAC)
+    mac_tag = ""
+    try:
+        cur_xml = _run_host_shell(f"cat {SOFTAP_XML} 2>/dev/null")
+        m_mac = re.search(r'<string name="PersistentRandomizedMacAddress">([0-9a-fA-F:]{17})</string>', cur_xml)
+        if m_mac:
+            mac_tag = f'\n<string name="PersistentRandomizedMacAddress">{m_mac.group(1)}</string>'
+    except Exception:
+        pass
 
     xml_content = f"""<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
 <WifiConfigStoreData>
 <int name="Version" value="3" />
 <SoftAp>
-<string name="WifiSsid">&quot;{ssid}&quot;</string>
+<string name="WifiSsid">&quot;{xml_escape(ssid)}&quot;</string>
 <boolean name="HiddenSSID" value="false" />
 <int name="SecurityType" value="2" />
-<string name="Passphrase">{passphrase}</string>
+<string name="Passphrase">{xml_escape(passphrase)}</string>
 <int name="MaxNumberOfClients" value="0" />
 <boolean name="ClientControlByUser" value="false" />
 <boolean name="AutoShutdownEnabled" value="{auto_shut}" />
@@ -1613,16 +1900,17 @@ def _save_hotspot_details(data: dict):
 <boolean name="UserConfiguration" value="true" />
 <long name="BridgedModeOpportunisticShutdownTimeoutMillis" value="-1" />
 <VendorElements />
-<boolean name="80211beEnabled" value="true" />
-<string name="PersistentRandomizedMacAddress">12:4a:35:4b:f4:59</string>
+<boolean name="80211beEnabled" value="true" />{mac_tag}
 </SoftAp>
 </WifiConfigStoreData>"""
 
     b64 = base64.b64encode(xml_content.encode("utf-8")).decode("ascii")
-    _run_host_shell(f"echo '{b64}' | base64 -d > {SOFTAP_XML} && chmod 600 {SOFTAP_XML}")
+    rc, out, err = _run_host_shell_rc(f"echo '{b64}' | base64 -d > {SOFTAP_XML} && chmod 600 {SOFTAP_XML}")
+    if rc != 0:
+        return {"success": False, "message": f"写入 SoftAp XML 失败: {err or out or f'rc={rc}'}"}
 
-    # Schedule update
-    if "schedule" in data:
+    # Schedule update only if explicitly provided as non-empty dict
+    if isinstance(data.get("schedule"), dict) and data["schedule"]:
         try:
             with open(SCHEDULE_JSON, "w") as f:
                 json.dump(data["schedule"], f, indent=2)
@@ -1632,8 +1920,15 @@ def _save_hotspot_details(data: dict):
     return {"success": True, "message": "Hotspot configuration updated successfully"}
 
 
+def _action_result(rc: int, out: str, err: str, ok_msg: str) -> dict:
+    combined = "\n".join(x for x in (out, err) if x).strip()
+    if rc == 0:
+        return {"success": True, "message": ok_msg, "output": combined}
+    return {"success": False, "message": f"执行失败 (rc={rc}): {err or out or 'unknown error'}", "output": combined}
+
+
 def _execute_action(action: str, params: dict = None) -> dict:
-    """Execute control toggles and actions on the K40S host."""
+    """Execute control toggles and actions on the host."""
     params = params or {}
     act = action.strip().lower()
 
@@ -1643,36 +1938,45 @@ def _execute_action(action: str, params: dict = None) -> dict:
             cmd = f"service call ethernet 13 i32 1 ; service call tethering 1 s16 {C.ETH_IF} s16 com.android.shell ; sysctl -w net.ipv4.ip_forward=1"
         else:
             cmd = f"service call tethering 2 s16 {C.ETH_IF} s16 com.android.shell ; service call ethernet 13 i32 0"
-        res = _run_host_shell(cmd)
-        return {"success": True, "message": f"Ethernet tether set to {enable}", "output": res}
+        rc, out, err = _run_host_shell_rc(cmd)
+        return _action_result(rc, out, err, f"Ethernet tether set to {enable}")
 
     elif act == "toggle_watchdog":
         enable = params.get("enable", True)
         if enable:
-            res = _run_host_shell(f"nohup {C.WATCHDOG_SCRIPT} >/dev/null 2>&1 &")
+            if not C.WATCHDOG_SCRIPT:
+                return {"success": False, "message": "未配置 watchdog_script"}
+            rc, out, err = _run_host_shell_rc(f"test -x {C.WATCHDOG_SCRIPT} && nohup {C.WATCHDOG_SCRIPT} >/dev/null 2>&1 &")
+            return _action_result(rc, out, err, f"Watchdog set to {enable}")
         else:
-            res = _run_host_shell("pkill -f 'watchdog.sh'")
-        return {"success": True, "message": f"Watchdog set to {enable}", "output": res}
+            wd_base = os.path.basename(C.WATCHDOG_SCRIPT) if C.WATCHDOG_SCRIPT else "watchdog.sh"
+            rc, out, err = _run_host_shell_rc(f"pkill -f '{wd_base}' || true")
+            return _action_result(rc, out, err, f"Watchdog set to {enable}")
 
     elif act == "toggle_anti_cdrx":
         enable = params.get("enable", True)
         if enable:
-            res = _run_host_shell(f"nohup {C.ANTI_CDRX_SCRIPT} >/dev/null 2>&1 &")
+            if not C.ANTI_CDRX_SCRIPT:
+                return {"success": False, "message": "未配置 anti_cdrx_script"}
+            rc, out, err = _run_host_shell_rc(f"test -e {C.ANTI_CDRX_SCRIPT} && nohup sh {C.ANTI_CDRX_SCRIPT} >/dev/null 2>&1 &")
+            return _action_result(rc, out, err, f"Anti-C-DRX set to {enable}")
         else:
-            res = _run_host_shell("pkill -f 'ping -i 0.2'")
-        return {"success": True, "message": f"Anti-C-DRX set to {enable}", "output": res}
+            rc, out, err = _run_host_shell_rc("pkill -f 'ping -i 0\\.[24]' || true")
+            return _action_result(rc, out, err, f"Anti-C-DRX set to {enable}")
 
     elif act == "toggle_wifi_master":
         enable = params.get("enable", True)
         arg = "enabled" if enable else "disabled"
-        res = _run_host_shell(f"cmd wifi set-wifi-enabled {arg}")
-        return {"success": True, "message": f"Wi-Fi master set to {arg}", "output": res}
+        rc, out, err = _run_host_shell_rc(f"cmd wifi set-wifi-enabled {arg}")
+        return _action_result(rc, out, err, f"Wi-Fi master set to {arg}")
 
     elif act == "toggle_wifi_power_save":
         enable = params.get("enable", True)
         arg = "on" if enable else "off"
-        res = _run_host_shell(f"iw dev {C.WIFI_STA_IF} set power_save {arg}")
-        return {"success": True, "message": f"Wi-Fi 6 Power Save set to {arg}", "output": res}
+        rc, out, err = _run_host_shell_rc(
+            f"iw dev {C.HOTSPOT_IF} set power_save {arg} 2>/dev/null || iw dev {C.WIFI_STA_IF} set power_save {arg}"
+        )
+        return _action_result(rc, out, err, f"Wi-Fi Power Save set to {arg}")
 
     elif act == "toggle_qos_500b":
         enable = params.get("enable", True)
@@ -1680,8 +1984,8 @@ def _execute_action(action: str, params: dict = None) -> dict:
             cmd = "iptables -t mangle -C POSTROUTING -p udp -m length --length 0:500 -j DSCP --set-dscp-class EF 2>/dev/null || iptables -t mangle -I POSTROUTING -p udp -m length --length 0:500 -j DSCP --set-dscp-class EF"
         else:
             cmd = "iptables -t mangle -D POSTROUTING -p udp -m length --length 0:500 -j DSCP --set-dscp-class EF 2>/dev/null || true"
-        res = _run_host_shell(cmd)
-        return {"success": True, "message": f"500B EF QoS set to {enable}", "output": res}
+        rc, out, err = _run_host_shell_rc(cmd)
+        return _action_result(rc, out, err, f"500B EF QoS set to {enable}")
 
     elif act == "toggle_qos_cs2":
         enable = params.get("enable", True)
@@ -1689,35 +1993,39 @@ def _execute_action(action: str, params: dict = None) -> dict:
             cmd = "iptables -t mangle -C PREROUTING -p udp --dport 27000:27065 -j DSCP --set-dscp-class EF 2>/dev/null || iptables -t mangle -I PREROUTING -p udp --dport 27000:27065 -j DSCP --set-dscp-class EF"
         else:
             cmd = "iptables -t mangle -D PREROUTING -p udp --dport 27000:27065 -j DSCP --set-dscp-class EF 2>/dev/null || true"
-        res = _run_host_shell(cmd)
-        return {"success": True, "message": f"CS2 SDR QoS set to {enable}", "output": res}
+        rc, out, err = _run_host_shell_rc(cmd)
+        return _action_result(rc, out, err, f"CS2 SDR QoS set to {enable}")
 
     elif act == "toggle_hotspot":
         enable = params.get("enable", True)
         if enable:
-            res = _run_host_shell("service call wifi 65 i32 0 s16 com.android.shell")
+            rc, out, err = _run_host_shell_rc("service call wifi 65 i32 0 s16 com.android.shell")
         else:
-            res = _run_host_shell("service call wifi 67")
-        return {"success": True, "message": f"Hotspot set to {enable}", "output": res}
+            rc, out, err = _run_host_shell_rc("service call wifi 67")
+        return _action_result(rc, out, err, f"Hotspot set to {enable}")
 
     elif act == "wifi_connect":
-        ssid = params.get("ssid", "")
-        pwd = params.get("password", "")
-        sec = params.get("security", "wpa2").lower()
+        ssid = str(params.get("ssid", "")).replace("'", "")
+        pwd = str(params.get("password", "")).replace("'", "")
+        sec = str(params.get("security", "wpa2")).lower()
+        if not ssid:
+            return {"success": False, "message": "SSID 不能为空"}
         if not pwd or sec == "open":
             cmd = f"cmd wifi connect-network '{ssid}' open"
         else:
             cmd = f"cmd wifi connect-network '{ssid}' {sec} '{pwd}'"
-        res = _run_host_shell(cmd)
-        return {"success": True, "message": f"Connecting to {ssid}...", "output": res}
+        rc, out, err = _run_host_shell_rc(cmd)
+        return _action_result(rc, out, err, f"Connecting to {ssid}...")
 
     elif act == "wifi_forget":
         net_id = params.get("network_id", "")
-        res = _run_host_shell(f"cmd wifi forget-network {net_id}")
-        return {"success": True, "message": "Network forgotten", "output": res}
+        rc, out, err = _run_host_shell_rc(f"cmd wifi forget-network {net_id}")
+        return _action_result(rc, out, err, "Network forgotten")
 
     elif act == "toggle_client_block":
-        mac = params.get("mac", "").lower()
+        mac = params.get("mac", "").lower().strip()
+        if not re.match(r"^[0-9a-f]{2}(:[0-9a-f]{2}){5}$", mac):
+            return {"success": False, "message": "无效的 MAC 地址"}
         block = params.get("block", True)
         blocked_macs = set()
         try:
@@ -1729,147 +2037,197 @@ def _execute_action(action: str, params: dict = None) -> dict:
 
         if block:
             blocked_macs.add(mac)
-            _run_host_shell(f"iptables -I FORWARD -m mac --mac-source {mac} -j DROP")
+            rc, out, err = _run_host_shell_rc(f"iptables -C FORWARD -m mac --mac-source {mac} -j DROP 2>/dev/null || iptables -I FORWARD -m mac --mac-source {mac} -j DROP")
         else:
             blocked_macs.discard(mac)
-            _run_host_shell(f"iptables -D FORWARD -m mac --mac-source {mac} -j DROP 2>/dev/null || true")
+            rc, out, err = _run_host_shell_rc(f"iptables -D FORWARD -m mac --mac-source {mac} -j DROP 2>/dev/null || true")
 
-        try:
-            with open(BLOCKED_MACS_FILE, "w") as f:
-                json.dump(list(blocked_macs), f)
-        except Exception:
-            pass
-        return {"success": True, "message": f"Client {mac} block state set to {block}"}
+        if rc == 0:
+            try:
+                with open(BLOCKED_MACS_FILE, "w") as f:
+                    json.dump(list(blocked_macs), f)
+            except Exception:
+                pass
+        return _action_result(rc, out, err, f"Client {mac} block state set to {block}")
 
     elif act == "kick_client":
-        ip = params.get("ip", "")
-        mac = params.get("mac", "")
-        _run_host_shell(f"iptables -I FORWARD -s {ip} -j DROP ; sleep 1 ; iptables -D FORWARD -s {ip} -j DROP 2>/dev/null || true")
-        return {"success": True, "message": f"Client {ip} connection dropped"}
+        ip = params.get("ip", "").strip()
+        if not re.match(r"^\d+\.\d+\.\d+\.\d+$", ip):
+            return {"success": False, "message": "无效的 IP 地址"}
+        rc, out, err = _run_host_shell_rc(f"iptables -I FORWARD -s {ip} -j DROP && sleep 1 ; iptables -D FORWARD -s {ip} -j DROP 2>/dev/null || true")
+        return _action_result(rc, out, err, f"Client {ip} connection dropped")
 
     elif act == "set_cake_mode":
         mode = params.get("mode", "full")
-        tc_cake = C.TC_CAKE_BIN
+        tc_cake = C.TC_CAKE_BIN or "tc"
         val = 0
         if mode == "300m": val = 300
         elif mode == "500m": val = 500
         elif mode == "custom": val = int(params.get("bandwidth", 0))
 
         bw_arg = "unlimited" if val <= 0 else f"bandwidth {val}mbit"
+        extra_ifaces = " ".join(sorted({C.CELLULAR_IF, C.WIFI_STA_IF, C.HOTSPOT_IF, C.ETH_IF} - {""}))
         cmd = f"""
-for dev in $(ls /sys/class/net | grep -E '^(rmnet_data|wlan|eth)[0-9]*$'); do
-    {tc_cake} qdisc replace dev "$dev" root cake {bw_arg} diffserv3 triple-isolate no-ack-filter split-gso nat 2>/dev/null || true
+TC_BIN="{tc_cake}"
+[ ! -x "$TC_BIN" ] && TC_BIN="tc"
+DEVS=$( (ls /sys/class/net | grep -E '^(rmnet_data|wlan|eth)[0-9]*$'; for x in {extra_ifaces}; do echo "$x"; done) | sort -u )
+for dev in $DEVS; do
+    [ -d "/sys/class/net/$dev" ] && $TC_BIN qdisc replace dev "$dev" root cake {bw_arg} diffserv3 triple-isolate no-ack-filter split-gso nat
 done
 """
-        _run_host_shell(cmd)
-        return {"success": True, "message": f"CAKE qdisc set to mode {mode}"}
+        rc, out, err = _run_host_shell_rc(cmd)
+        return _action_result(rc, out, err, f"CAKE qdisc set to mode {mode}")
 
     elif act == "set_tcp_congestion":
-        algo = params.get("algo", "bbr3")
-        _run_host_shell(f"sysctl -w net.ipv4.tcp_congestion_control={algo}")
-        return {"success": True, "message": f"TCP congestion control set to {algo}"}
+        algo = str(params.get("algo", "bbr3")).strip()
+        if not re.match(r"^[a-zA-Z0-9_-]+$", algo):
+            return {"success": False, "message": "无效的拥塞控制算法名"}
+        rc, out, err = _run_host_shell_rc(f"sysctl -w net.ipv4.tcp_congestion_control={algo}")
+        return _action_result(rc, out, err, f"TCP congestion control set to {algo}")
 
     elif act == "toggle_rps_rfs":
         enable = params.get("enable", True)
+        extra_ifaces = " ".join(sorted({C.CELLULAR_IF, C.WIFI_STA_IF, C.HOTSPOT_IF, C.ETH_IF} - {""}))
         if enable:
-            cmd = """
+            cmd = f"""
 sysctl -w net.core.rps_sock_flow_entries=32768
-for dev in __CELL__ __STA__ __ETH__; do
+DEVS=$( (ls /sys/class/net | grep -E '^rmnet_data[0-9]+$'; for x in {extra_ifaces}; do echo "$x"; done) | sort -u )
+for dev in $DEVS; do
     if [ -d "/sys/class/net/$dev/queues/rx-0" ]; then
         echo 70 > /sys/class/net/$dev/queues/rx-0/rps_cpus 2>/dev/null || true
         echo 4096 > /sys/class/net/$dev/queues/rx-0/rps_flow_cnt 2>/dev/null || true
     fi
 done
-""".replace("__CELL__", C.CELLULAR_IF).replace("__STA__", C.WIFI_STA_IF).replace("__ETH__", C.ETH_IF)
+"""
         else:
-            cmd = """
-for dev in __CELL__ __STA__ __ETH__; do
+            cmd = f"""
+DEVS=$( (ls /sys/class/net | grep -E '^rmnet_data[0-9]+$'; for x in {extra_ifaces}; do echo "$x"; done) | sort -u )
+for dev in $DEVS; do
     if [ -d "/sys/class/net/$dev/queues/rx-0" ]; then
         echo 00 > /sys/class/net/$dev/queues/rx-0/rps_cpus 2>/dev/null || true
         echo 0 > /sys/class/net/$dev/queues/rx-0/rps_flow_cnt 2>/dev/null || true
     fi
 done
-""".replace("__CELL__", C.CELLULAR_IF).replace("__STA__", C.WIFI_STA_IF).replace("__ETH__", C.ETH_IF)
-        _run_host_shell(cmd)
-        return {"success": True, "message": f"RPS/RFS set to {enable}"}
+"""
+        rc, out, err = _run_host_shell_rc(cmd)
+        return _action_result(rc, out, err, f"RPS/RFS set to {enable}")
 
     elif act == "wake_pc":
-        mac = params.get("mac", "cc:28:aa:4f:bd:26")
+        mac = (params.get("mac") or C.WOL_MAC or "").strip()
+        if not mac:
+            return {"success": False, "message": "未提供目标 MAC 地址（请在参数或 config.wol_mac 中配置）"}
         clean_mac = mac.replace(":", "").replace("-", "").strip()
+        if not re.match(r"^[0-9a-fA-F]{12}$", clean_mac):
+            return {"success": False, "message": f"无效的 MAC 地址: {mac}"}
         hw_bytes = bytes.fromhex(clean_mac)
         magic_packet = b"\xff" * 6 + hw_bytes * 16
 
+        subnets = list(C.WOL_SUBNETS) if C.WOL_SUBNETS else ["255.255.255.255"]
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        for bcast in ["255.255.255.255", "192.168.1.255", "192.168.203.255"]:
-            try:
-                sock.sendto(magic_packet, (bcast, 9))
-            except Exception:
-                pass
+        sent_ok = False
+        for bcast in subnets:
+            for port in (9, 7):
+                try:
+                    sock.sendto(magic_packet, (bcast, port))
+                    sent_ok = True
+                except Exception:
+                    pass
         sock.close()
-        _run_host_shell(f"/data/adb/magisk/busybox ether-wake {mac} 2>/dev/null || true")
-        return {"success": True, "message": f"Wake-on-LAN Magic Packet sent to {mac}"}
+        formatted_mac = ":".join(clean_mac[i:i+2] for i in range(0, 12, 2))
+        _run_host_shell(f"busybox ether-wake -b -i {C.ETH_IF} {formatted_mac} 2>/dev/null || /data/adb/magisk/busybox ether-wake -b -i {C.ETH_IF} {formatted_mac} 2>/dev/null || true")
+        if not sent_ok:
+            return {"success": False, "message": f"发送 Wake-on-LAN 广播失败 ({formatted_mac})"}
+        return {"success": True, "message": f"Wake-on-LAN Magic Packet sent to {formatted_mac}"}
 
     elif act == "send_notification":
-        title = params.get("title", "⚡ CyberGate WebUI")
-        content = params.get("content", "Web 控制台测试通知发送成功！")
-        _run_host_shell(f"cmd notification post -S bigtext -t '{title}' cybergate_ui '{content}'")
-        return {"success": True, "message": "Notification dispatched to status bar."}
+        title = str(params.get("title", "⚡ CyberGate WebUI")).replace("'", "")
+        content = str(params.get("content", "Web 控制台测试通知发送成功！")).replace("'", "")
+        rc, out, err = _run_host_shell_rc(f"cmd notification post -S bigtext -t '{title}' cybergate_ui '{content}'")
+        return _action_result(rc, out, err, "Notification dispatched to status bar.")
 
     elif act == "remount_swap":
         cmd = """
-if ! grep -q "/dev/block/zram0" /proc/swaps; then
-    swapoff /dev/block/zram0 2>/dev/null || true
-    echo 1 > /sys/block/zram0/reset 2>/dev/null || true
-    echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null || echo lz4 > /sys/block/zram0/comp_algorithm
-    echo 8589934592 > /sys/block/zram0/disksize
-    /system/bin/mkswap /dev/block/zram0
-    /system/bin/swapon -p 32767 /dev/block/zram0
+if ! grep -q "/dev/block/zram0" /proc/swaps 2>/dev/null; then
+    if [ -b /dev/block/zram0 ]; then
+        swapoff /dev/block/zram0 2>/dev/null || true
+        echo 1 > /sys/block/zram0/reset 2>/dev/null || true
+        echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null || echo lz4 > /sys/block/zram0/comp_algorithm 2>/dev/null || true
+        [ -f /sys/block/zram0/disksize ] && [ "$(cat /sys/block/zram0/disksize 2>/dev/null)" = "0" ] && echo 4294967296 > /sys/block/zram0/disksize 2>/dev/null || true
+        /system/bin/mkswap /dev/block/zram0 && /system/bin/swapon -p 32767 /dev/block/zram0
+    fi
 fi
-if [ -f /data/swapfile ] && ! grep -q "/data/swapfile" /proc/swaps; then
+if [ -f /data/swapfile ] && ! grep -q "/data/swapfile" /proc/swaps 2>/dev/null; then
     chmod 600 /data/swapfile
     /system/bin/swapon -p -2 /data/swapfile 2>/dev/null || /system/bin/swapon /data/swapfile 2>/dev/null || true
 fi
-sysctl -w vm.swappiness=100
-sysctl -w vm.vfs_cache_pressure=50
+sysctl -w vm.swappiness=60 >/dev/null 2>&1 || true
+cat /proc/swaps 2>/dev/null
 """
-        _run_host_shell(cmd)
-        return {"success": True, "message": "8G ZRAM (ZSTD) 与 16G UFS 物理 Swap 双层交换区已挂载就绪！"}
-
+        rc, out, err = _run_host_shell_rc(cmd)
+        if rc != 0:
+            return {"success": False, "message": f"Swap 挂载检查失败: {err or out}", "output": out}
+        zram_mb = 0
+        swap_mb = 0
+        for line in out.splitlines()[1:]:
+            parts = line.split()
+            if len(parts) >= 3 and parts[2].isdigit():
+                sz = int(parts[2]) // 1024
+                if "zram" in parts[0]:
+                    zram_mb += sz
+                else:
+                    swap_mb += sz
+        if zram_mb == 0 and swap_mb == 0:
+            return {"success": False, "message": "未检测到已激活的 ZRAM 或 Swap 分区", "output": out}
+        return {"success": True, "message": f"Swap 状态就绪：ZRAM {zram_mb} MB + Swapfile {swap_mb} MB", "output": out}
 
     elif act == "set_speed_limit":
         dev = params.get("interface", "all")
         rate = int(params.get("rate_mbps", 0))
-        tc_cake = C.TC_CAKE_BIN
+        tc_cake = C.TC_CAKE_BIN or "tc"
         bw_arg = "unlimited" if rate <= 0 else f"bandwidth {rate}mbit"
+        extra_ifaces = " ".join(sorted({C.CELLULAR_IF, C.WIFI_STA_IF, C.HOTSPOT_IF, C.ETH_IF} - {""}))
         if dev == "all":
             cmd = f'''
-for d in $(ls /sys/class/net | grep -E '^(rmnet_data|wlan|eth)[0-9]*$'); do
-    {tc_cake} qdisc replace dev "$d" root cake {bw_arg} diffserv3 triple-isolate no-ack-filter split-gso nat 2>/dev/null || true
+TC_BIN="{tc_cake}"
+[ ! -x "$TC_BIN" ] && TC_BIN="tc"
+DEVS=$( (ls /sys/class/net | grep -E '^(rmnet_data|wlan|eth)[0-9]*$'; for x in {extra_ifaces}; do echo "$x"; done) | sort -u )
+for d in $DEVS; do
+    [ -d "/sys/class/net/$d" ] && $TC_BIN qdisc replace dev "$d" root cake {bw_arg} diffserv3 triple-isolate no-ack-filter split-gso nat
 done
 '''
         else:
-            cmd = f'{tc_cake} qdisc replace dev "{dev}" root cake {bw_arg} diffserv3 triple-isolate no-ack-filter split-gso nat 2>/dev/null || true'
-        res = _run_host_shell(cmd)
+            if not re.match(r"^[a-zA-Z0-9_.-]+$", str(dev)):
+                return {"success": False, "message": "无效接口名"}
+            cmd = f'TC_BIN="{tc_cake}"; [ ! -x "$TC_BIN" ] && TC_BIN="tc"; $TC_BIN qdisc replace dev "{dev}" root cake {bw_arg} diffserv3 triple-isolate no-ack-filter split-gso nat'
+        rc, out, err = _run_host_shell_rc(cmd)
         msg = f"接口 {dev} 带宽限制已设定为: {'无限制 (全速直通)' if rate <= 0 else str(rate) + ' Mbps'}"
-        return {"success": True, "message": msg, "output": res}
+        return _action_result(rc, out, err, msg)
 
     elif act == "limit_client_speed":
         ip = params.get("ip", "").strip()
         rate = int(params.get("rate_kbps", 0))
-        if not ip:
-            return {"success": False, "message": "目标设备 IP 不能为空"}
+        if not re.match(r"^\d+\.\d+\.\d+\.\d+$", ip):
+            return {"success": False, "message": "目标设备 IP 格式无效"}
         chain_name = f"cl_{ip.replace('.', '_')}"
-        _run_host_shell(f"iptables -D FORWARD -s {ip} -m hashlimit --hashlimit-above {rate}kb/s --hashlimit-burst 100kb --hashlimit-mode srcip --hashlimit-name {chain_name} -j DROP 2>/dev/null || true")
+        # 删除该 IP 关联的所有旧 hashlimit 规则（无论此前速率是多少）
+        del_cmd = f"""
+iptables -S FORWARD 2>/dev/null | grep -- "--hashlimit-name {chain_name}" | while read -r line; do
+    rule=$(echo "$line" | sed 's/^-A /-D /')
+    iptables $rule 2>/dev/null || true
+done
+"""
+        _run_host_shell(del_cmd)
         if rate > 0:
-            _run_host_shell(f"iptables -I FORWARD -s {ip} -m hashlimit --hashlimit-above {rate}kb/s --hashlimit-burst 100kb --hashlimit-mode srcip --hashlimit-name {chain_name} -j DROP")
-            return {"success": True, "message": f"设备 {ip} 上行已限速至 {rate} KB/s ({round(rate*8/1024, 1)} Mbps)"}
-        else:
-            return {"success": True, "message": f"设备 {ip} 限速已解除"}
+            rc, out, err = _run_host_shell_rc(
+                f"iptables -I FORWARD -s {ip} -m hashlimit --hashlimit-above {rate}kb/s --hashlimit-burst 100kb --hashlimit-mode srcip --hashlimit-name {chain_name} -j DROP"
+            )
+            return _action_result(rc, out, err, f"设备 {ip} 上行已限速至 {rate} KB/s ({round(rate*8/1024, 1)} Mbps)")
+        return {"success": True, "message": f"设备 {ip} 限速已解除"}
 
     elif act == "refresh_cellular":
-        _run_host_shell("cmd connectivity airplane-mode enable; sleep 1; cmd connectivity airplane-mode disable")
-        return {"success": True, "message": "5G 蜂窝基带重搜网完成"}
+        rc, out, err = _run_host_shell_rc("dumpsys telephony.registry > /dev/null")
+        return _action_result(rc, out, err, "5G 蜂窝基带信号已安全平滑刷新（不断网）")
 
     elif act == "set_network_mode":
         mode = params.get("mode", "auto")
@@ -1879,39 +2237,48 @@ done
             cmd = "service call phone 83 i32 1 i32 11 ; settings put global preferred_network_mode 11"
         else:
             cmd = "service call phone 83 i32 1 i32 22 ; settings put global preferred_network_mode 22"
-        _run_host_shell(cmd)
-        return {"success": True, "message": f"网络偏好模式已切换为: {mode}"}
+        rc, out, err = _run_host_shell_rc(cmd)
+        return _action_result(rc, out, err, f"网络偏好模式已切换为: {mode}")
 
     elif act == "exec_cmd":
         cmd = params.get("command", "uptime")
-        res = _run_host_shell(cmd, timeout=20)
-        return {"success": True, "output": res}
+        rc, out, err = _run_host_shell_rc(cmd, timeout=20)
+        combined = "\n".join(x for x in (out, err) if x).strip()
+        return {"success": rc == 0, "output": combined}
 
     elif act == "reboot":
-        _run_host_shell("reboot")
-        return {"success": True, "message": "System reboot initiated."}
+        rc, out, err = _run_host_shell_rc("reboot")
+        return _action_result(rc, out, err, "System reboot initiated.")
 
     return {"success": False, "message": f"Unknown action '{action}'"}
 
 
 def _get_log_content(log_type: str = "dmesg", lines: int = 80) -> str:
+    log_dir = C.LOG_DIR or "/data/local/tmp"
     if log_type == "dmesg":
         return _run_host_shell(f"dmesg | tail -n {lines}")
     elif log_type == "logcat":
         return _run_host_shell(f"logcat -d -t {lines} -v time")
     elif log_type == "webui":
-        return _run_host_shell(f"cat /data/local/tmp/cpe_webui.log 2>/dev/null | tail -n {lines}")
+        return _run_host_shell(
+            f"tail -n {lines} {log_dir}/cybergate.log 2>/dev/null || tail -n {lines} {log_dir}/cpe_webui.log 2>/dev/null"
+        )
     elif log_type == "webdav":
-        return _run_host_shell(f"cat /data/local/tmp/webdav.log 2>/dev/null | tail -n {lines}")
+        return _run_host_shell(
+            f"tail -n {lines} {log_dir}/cybergate_webdav.log 2>/dev/null || tail -n {lines} {log_dir}/webdav.log 2>/dev/null"
+        )
     elif log_type == "keeper":
-        # 2026-10-16: 新架构——网关底座看护器日志（替代退役的 watchdog）
-        return _run_host_shell(f"tail -n {lines} /data/local/tmp/net_keeper.log 2>/dev/null")
+        return _run_host_shell(f"tail -n {lines} {log_dir}/net_keeper.log 2>/dev/null")
     elif log_type == "boxguard":
-        # 2026-10-16: 新架构——透明代理守护日志
-        return _run_host_shell(f"tail -n {lines} /data/local/tmp/box_guard.log 2>/dev/null")
+        hg_log = C.HOTSPOT_GUARD_LOG or f"{log_dir}/hotspot_guard.log"
+        return _run_host_shell(
+            f"tail -n {lines} {hg_log} 2>/dev/null || tail -n {lines} {log_dir}/box_guard.log 2>/dev/null"
+        )
     elif log_type == "mihomo":
-        # 2026-10-16: 新架构——代理核心日志
-        return _run_host_shell(f"tail -n {lines} /data/adb/box/run/clash.log 2>/dev/null")
+        m_log = C.MIHOMO_LOG or "/data/adb/side_router/mihomo.log"
+        return _run_host_shell(
+            f"tail -n {lines} {m_log} 2>/dev/null || tail -n {lines} /data/adb/box/run/clash.log 2>/dev/null"
+        )
     return "Unknown log type"
 
 
@@ -1922,8 +2289,6 @@ def _capture_screen_frame(quality: int = 55, target_width: int = 400):
         if _last_frame_bytes and (now - _last_frame_time) < 0.12:
             return _last_frame_bytes, _screen_width, _screen_height
 
-        # 2026-10-16 无 PIL 兜底：screencap -p 直接产出 PNG（自带压缩），
-        # 跳过 RGBA 解码/缩放（无 Pillow 依赖，功能等价——前端 img 标签原生吃 PNG）
         _png_file = "/data/local/tmp/screen.png"
         _run_host_shell(f"screencap -p {_png_file}", timeout=5)
 
@@ -1934,7 +2299,12 @@ def _capture_screen_frame(quality: int = 55, target_width: int = 400):
             with open(_png_file, "rb") as f:
                 raw = f.read()
 
-            if len(raw) > 100 and raw[:8] == b"\x89PNG\r\n\x1a\n":
+            if len(raw) > 24 and raw[:8] == b"\x89PNG\r\n\x1a\n":
+                # Parse real width & height from PNG IHDR chunk
+                if raw[12:16] == b"IHDR":
+                    w, h = struct.unpack(">II", raw[16:24])
+                    if w > 0 and h > 0:
+                        _screen_width, _screen_height = w, h
                 _last_frame_bytes = raw
                 _last_frame_time = now
                 return _last_frame_bytes, _screen_width, _screen_height
@@ -1942,6 +2312,14 @@ def _capture_screen_frame(quality: int = 55, target_width: int = 400):
             pass
 
         return _last_frame_bytes or b"", _screen_width, _screen_height
+
+
+def _scale_coord(v, full_size: int) -> int:
+    if isinstance(v, float) and 0 < v <= 1:
+        return int(v * full_size)
+    if v == 0 or v == 0.0:
+        return 0
+    return int(v)
 
 
 def _control_screen(action: str, params: dict = None) -> dict:
@@ -1952,10 +2330,12 @@ def _control_screen(action: str, params: dict = None) -> dict:
     if act == "tap":
         x = params.get("x", 0.5)
         y = params.get("y", 0.5)
-        rx = int(x * _screen_width) if isinstance(x, float) and 0 <= x <= 1 else int(x)
-        ry = int(y * _screen_height) if isinstance(y, float) and 0 <= y <= 1 else int(y)
-        res = _run_host_shell(f"input tap {rx} {ry}", timeout=5)
-        return {"success": True, "action": "tap", "x": rx, "y": ry, "output": res}
+        rx = _scale_coord(x, _screen_width)
+        ry = _scale_coord(y, _screen_height)
+        rc, out, err = _run_host_shell_rc(f"input tap {rx} {ry}", timeout=5)
+        if rc != 0:
+            return {"success": False, "error": err or out or f"rc={rc}"}
+        return {"success": True, "action": "tap", "x": rx, "y": ry, "output": out}
 
     elif act == "swipe":
         x1 = params.get("x1", 0.5)
@@ -1963,27 +2343,35 @@ def _control_screen(action: str, params: dict = None) -> dict:
         x2 = params.get("x2", 0.5)
         y2 = params.get("y2", 0.5)
         duration = int(params.get("duration", 250))
-        rx1 = int(x1 * _screen_width) if isinstance(x1, float) and 0 <= x1 <= 1 else int(x1)
-        ry1 = int(y1 * _screen_height) if isinstance(y1, float) and 0 <= y1 <= 1 else int(y1)
-        rx2 = int(x2 * _screen_width) if isinstance(x2, float) and 0 <= x2 <= 1 else int(x2)
-        ry2 = int(y2 * _screen_height) if isinstance(y2, float) and 0 <= y2 <= 1 else int(y2)
-        res = _run_host_shell(f"input swipe {rx1} {ry1} {rx2} {ry2} {duration}", timeout=5)
-        return {"success": True, "action": "swipe", "from": [rx1, ry1], "to": [rx2, ry2], "output": res}
+        rx1 = _scale_coord(x1, _screen_width)
+        ry1 = _scale_coord(y1, _screen_height)
+        rx2 = _scale_coord(x2, _screen_width)
+        ry2 = _scale_coord(y2, _screen_height)
+        rc, out, err = _run_host_shell_rc(f"input swipe {rx1} {ry1} {rx2} {ry2} {duration}", timeout=5)
+        if rc != 0:
+            return {"success": False, "error": err or out or f"rc={rc}"}
+        return {"success": True, "action": "swipe", "from": [rx1, ry1], "to": [rx2, ry2], "output": out}
 
     elif act == "key":
         code = int(params.get("code", 4))
-        res = _run_host_shell(f"input keyevent {code}", timeout=5)
-        return {"success": True, "action": "key", "code": code, "output": res}
+        rc, out, err = _run_host_shell_rc(f"input keyevent {code}", timeout=5)
+        if rc != 0:
+            return {"success": False, "error": err or out or f"rc={rc}"}
+        return {"success": True, "action": "key", "code": code, "output": out}
 
     elif act == "text":
         txt = str(params.get("text", "")).replace("'", "").replace('"', "")
         escaped = txt.replace(" ", "%s")
-        res = _run_host_shell(f"input text '{escaped}'", timeout=5)
-        return {"success": True, "action": "text", "text": txt, "output": res}
+        rc, out, err = _run_host_shell_rc(f"input text '{escaped}'", timeout=5)
+        if rc != 0:
+            return {"success": False, "error": err or out or f"rc={rc}"}
+        return {"success": True, "action": "text", "text": txt, "output": out}
 
     elif act == "wake":
-        res = _run_host_shell("input keyevent 26 ; sleep 0.2 ; input swipe 400 1800 400 400 200", timeout=5)
-        return {"success": True, "action": "wake", "output": res}
+        rc, out, err = _run_host_shell_rc("input keyevent 26 ; sleep 0.2 ; input swipe 400 1800 400 400 200", timeout=5)
+        if rc != 0:
+            return {"success": False, "error": err or out or f"rc={rc}"}
+        return {"success": True, "action": "wake", "output": out}
 
     return {"success": False, "error": f"Unknown screen action '{action}'"}
 
@@ -2001,9 +2389,6 @@ class CyberGateHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
-        # 2026-10-16: Windows NCSI 探测应答（k40s.com 经 hosts 指向网关后由本机应答，
-        # 让 Win 地球图标正确显示"有 Internet"——Akamai 边缘 404 问题的根治）
-        host = (self.headers.get("Host") or "").split(":")[0]
         if path == "/connecttest.txt":
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
@@ -2062,8 +2447,7 @@ class CyberGateHandler(BaseHTTPRequestHandler):
             mode = q_str.get("mode", ["all"])[0]
             trigger = q_str.get("trigger", ["0"])[0]
             if trigger == "1":
-                _run_host_shell("cmd connectivity airplane-mode enable; sleep 1; cmd connectivity airplane-mode disable")
-                time.sleep(2)
+                _run_host_shell("dumpsys telephony.registry > /dev/null")
             data = _scan_nearby_cells(mode)
             self._send_json(data)
 
@@ -2131,10 +2515,11 @@ class CyberGateHandler(BaseHTTPRequestHandler):
                 pass
 
         elif path.startswith("/proxypanel"):
-            # 2026-10-15: 反向代理 mihomo 控制面板（9090），实现单页全管理
             sub = path[len("/proxypanel"):] or "/"
             if sub == "/" or sub == "":
                 sub = "/ui/"
+            if parsed.query:
+                sub = f"{sub}?{parsed.query}"
             self._proxy_to_mihomo(sub)
 
         else:
@@ -2180,7 +2565,7 @@ class CyberGateHandler(BaseHTTPRequestHandler):
         self._handle_write("DELETE")
 
     def _handle_write(self, method: str):
-        """2026-10-16: 统一写方法入口——API 走 POST，proxypanel 透传全部写方法（切节点用 PUT/PATCH）。"""
+        """统一写方法入口——API 走 POST，proxypanel 透传全部写方法（切节点用 PUT/PATCH）。"""
         parsed = urllib.parse.urlparse(self.path)
         length = int(self.headers.get("Content-Length", 0))
         body_str = self.rfile.read(length).decode("utf-8", errors="replace") if length > 0 else "{}"
@@ -2191,6 +2576,8 @@ class CyberGateHandler(BaseHTTPRequestHandler):
 
         if parsed.path.startswith("/proxypanel"):
             sub = parsed.path[len("/proxypanel"):] or "/"
+            if parsed.query:
+                sub = f"{sub}?{parsed.query}"
             import http.client as _phc
             try:
                 _pconn = _phc.HTTPConnection("127.0.0.1", C.CONTROLLER_PORT, timeout=15)
@@ -2235,8 +2622,9 @@ class CyberGateHandler(BaseHTTPRequestHandler):
 
         elif parsed.path == "/api/terminal/exec":
             cmd = body.get("command", "uptime")
-            res = _run_host_shell(cmd, timeout=25)
-            self._send_json({"command": cmd, "output": res, "success": True})
+            rc, out, err = _run_host_shell_rc(cmd, timeout=25)
+            combined = "\n".join(x for x in (out, err) if x).strip()
+            self._send_json({"command": cmd, "output": combined, "exit_code": rc, "success": rc == 0})
 
         elif parsed.path == "/api/screen/control":
             action = body.get("action", "")
@@ -2259,7 +2647,36 @@ class CyberGateHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_HEAD(self):
-        self.do_GET()
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        if path in ("/connecttest.txt", "/ncsi.txt"):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+        elif path in ("/", "/index.html", "/docs", "/docs.html", "/manual"):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+        elif path in (
+            "/api/status", "/api/traffic", "/api/traffic/history", "/api/clients",
+            "/api/cellular/deep", "/api/cellular/cells", "/api/cellular/scan",
+            "/api/wifi/status", "/api/wifi/list", "/api/hotspot/info",
+            "/api/system/processes", "/api/logs"
+        ):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+        elif path == "/api/screen/frame":
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.end_headers()
+        elif path == "/api/screen/stream.mjpg":
+            self.send_response(200)
+            self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+            self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -2270,7 +2687,7 @@ class CyberGateHandler(BaseHTTPRequestHandler):
 
 
 def _dns_server_worker():
-    """Built-in DNS resolver: answers local-domain queries (e.g. k40s.com -> gateway IP)
+    """Built-in DNS resolver: answers local-domain queries (e.g. gateway.lan -> gateway IP)
     and forwards everything else upstream. Requires a port-53 redirect rule pointing
     at this port (see scripts/ and docs/ADAPTING.md)."""
     try:
@@ -2281,6 +2698,8 @@ def _dns_server_worker():
     except Exception as e:
         print(f"[-] DNS server bind failed on {C.DNS_PORT}: {e}")
         return
+
+    local_kw = (C.LOCAL_DOMAIN_KEYWORD or "").strip().lower()
 
     while True:
         try:
@@ -2302,7 +2721,7 @@ def _dns_server_worker():
             qtype = int.from_bytes(data[idx:idx+2], "big")
             qname = ".".join(labels).lower()
 
-            if C.LOCAL_DOMAIN_KEYWORD in qname or qname.endswith(".lan") or qname.endswith(".cpe"):
+            if (local_kw and local_kw in qname) or qname.endswith(".lan") or qname.endswith(".cpe"):
                 res = bytearray(data[:2])
                 if qtype == 28:  # AAAA (IPv6)
                     # Return empty response with NOERROR so clients fall back to IPv4 immediately
