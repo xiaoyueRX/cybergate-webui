@@ -2091,6 +2091,8 @@ Type a command below and press Enter.</div>
                 document.getElementById('modal-batt-status-text').innerText = b && b.error ? `⚠️ 读取失败: ${b.error}` : 'N/A';
                 document.getElementById('modal-batt-temp').innerText = 'N/A';
                 document.getElementById('modal-batt-temp-sub').innerText = 'N/A';
+                const pLabel = document.getElementById('modal-batt-power-label');
+                if (pLabel) pLabel.innerText = '🔌 实时供电功率';
                 document.getElementById('modal-batt-power').innerText = 'N/A';
                 document.getElementById('modal-batt-current').innerText = '实时电流: N/A';
                 document.getElementById('modal-batt-volt').innerText = 'N/A';
@@ -2103,8 +2105,6 @@ Type a command below and press Enter.</div>
             const text = isValidVal(b.status_text) ? b.status_text : fmtVal(b.status);
             const cap = isValidVal(b.capacity) ? `${b.capacity}%` : 'N/A';
             const temp = isValidVal(b.temp) ? `${b.temp} °C` : 'N/A';
-            const pwr = isValidVal(b.power_w) ? `${b.power_w} W` : 'N/A';
-            const cur = isValidVal(b.current_ma) ? `${b.current_ma} mA` : 'N/A';
 
             document.getElementById('modal-batt-cap').innerText = cap;
             document.getElementById('modal-batt-status-text').innerText = `${icon} ${text}`;
@@ -2115,8 +2115,58 @@ Type a command below and press Enter.</div>
                     ? (b.temp >= 45 ? '⚠️ 电池温度偏高，请注意散热' : '温控正常')
                     : 'N/A';
             }
-            document.getElementById('modal-batt-power').innerText = pwr;
-            document.getElementById('modal-batt-current').innerText = `实时电流: ${cur}`;
+
+            // Power card & description dynamic rendering by status
+            const pwrLabel = document.getElementById('modal-batt-power-label');
+            const pwrVal = document.getElementById('modal-batt-power');
+            const curVal = document.getElementById('modal-batt-current');
+            const descBox = document.getElementById('modal-batt-desc-box');
+
+            if (b.status_badge === 'charging') {
+                if (pwrLabel) pwrLabel.innerText = '⚡ 电池充电功率';
+                if (pwrVal) {
+                    pwrVal.innerText = isValidVal(b.power_w) ? `${b.power_w} W` : '充电中';
+                    pwrVal.style.color = 'var(--accent-amber)';
+                }
+                const curText = typeof b.current_ma === 'number' ? `+${Math.abs(b.current_ma)} mA (充入电池)` : 'N/A';
+                const usbTag = typeof b.usb_power_w === 'number' ? ` · 适配器输入: ${b.usb_power_w} W` : '';
+                if (curVal) curVal.innerText = `充电电流: ${curText}${usbTag}`;
+
+                if (descBox) {
+                    descBox.innerHTML = `💡 <b>智能回充保护说明：</b><br>当前电量处于安全循环回充区间 (ACC 70%~75%)。系统正以安全电流对电池进行回充，充至 <b>75% 保护阈值</b> 后将自动断开充电并切入硬件旁路直供，杜绝电池持续高压过充与高温鼓包。`;
+                }
+            } else if (b.status_badge === 'bypass') {
+                if (pwrLabel) pwrLabel.innerText = '🛡️ 旁路直供状态';
+                if (pwrVal) {
+                    pwrVal.innerText = '芯片直供 (免伤电池)';
+                    pwrVal.style.color = 'var(--accent-cyan)';
+                }
+                const curText = typeof b.current_ma === 'number' ? `${Math.abs(b.current_ma)} mA` : '0 mA';
+                const usbTag = typeof b.usb_power_w === 'number' ? `${b.usb_power_w} W` : (b.usb_type || 'USB-PD');
+                if (curVal) curVal.innerText = `电池状态: 微放电 ${curText} · 外部供电: ${usbTag}`;
+
+                if (descBox) {
+                    descBox.innerHTML = `🛡️ <b>7×24h 智能旁路直供防护生效中：</b><br>系统已切断电池充电输入 (input_suspend: 1)，充电器直接向主控芯片与蜂窝网络基带供电，停止对锂电池高功率循环浮充，彻底杜绝高温鼓包与电池寿命衰减。`;
+                }
+            } else if (b.status_badge === 'discharging') {
+                if (pwrLabel) pwrLabel.innerText = '🔋 电池放电功率';
+                if (pwrVal) {
+                    pwrVal.innerText = isValidVal(b.power_w) ? `${b.power_w} W` : '放电中';
+                    pwrVal.style.color = 'var(--accent-purple)';
+                }
+                const curText = typeof b.current_ma === 'number' ? `-${Math.abs(b.current_ma)} mA (消耗)` : 'N/A';
+                if (curVal) curVal.innerText = `放电电流: ${curText}`;
+
+                if (descBox) {
+                    descBox.innerHTML = `🔋 <b>纯电池供电模式：</b><br>当前未检测到外部电源输入，设备完全由内部锂电池供电。请适时连接 Type-C 充电器或拓展坞以启用旁路供电保护。`;
+                }
+            } else {
+                if (pwrLabel) pwrLabel.innerText = '🔌 实时供电状态';
+                if (pwrVal) pwrVal.innerText = isValidVal(b.power_w) ? `${b.power_w} W` : (text || '--');
+                if (curVal) curVal.innerText = `电流: ${typeof b.current_ma === 'number' ? b.current_ma + ' mA' : '--'}`;
+                if (descBox) descBox.innerHTML = `ℹ️ ${b.status_desc || '电池系统正常运行中。'}`;
+            }
+
             document.getElementById('modal-batt-volt').innerText = typeof b.voltage_v === 'number'
                 ? `${b.voltage_v} V (${Math.round(b.voltage_v * 1000)} mV)`
                 : fmtVal(b.voltage_v, ' V');
@@ -2785,15 +2835,33 @@ Type a command below and press Enter.</div>
                     }
                     const kpiSub = document.getElementById('kpi-batt-sub');
                     if (kpiSub) {
-                        kpiSub.innerText = `温度: ${temp} | 功率: ${pwr} (${volt})`;
+                        let pwrTag = '';
+                        if (b.status_badge === 'charging') {
+                            pwrTag = `快充: ${pwr}`;
+                        } else if (b.status_badge === 'bypass') {
+                            pwrTag = `直供芯片 (${b.usb_type || 'PD'})`;
+                        } else if (typeof b.power_w === 'number') {
+                            pwrTag = `放电: ${pwr}`;
+                        } else {
+                            pwrTag = `功率: ${pwr}`;
+                        }
+                        kpiSub.innerText = `温度: ${temp} | ${pwrTag}`;
                     }
 
                     const ovBadge = document.getElementById('ov-batt-badge');
                     if (ovBadge) {
                         ovBadge.innerText = `${icon} ${isValidVal(b.status_desc) ? b.status_desc : text}`;
-                        if (b.status_badge === 'bypass') ovBadge.className = 'badge-bypass';
-                        else if (b.status_badge === 'charging' || b.status_badge === 'full') ovBadge.className = 'badge-online';
-                        else ovBadge.className = 'badge-warn';
+                        if (b.status_badge === 'bypass') {
+                            ovBadge.className = 'pill-tag';
+                            ovBadge.style.borderColor = 'rgba(6, 182, 212, 0.4)';
+                            ovBadge.style.color = 'var(--accent-cyan)';
+                        } else if (b.status_badge === 'charging' || b.status_badge === 'full') {
+                            ovBadge.className = 'pill-tag';
+                            ovBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+                            ovBadge.style.color = 'var(--accent-amber)';
+                        } else {
+                            ovBadge.className = 'pill-tag';
+                        }
                     }
                     const ovCapText = document.getElementById('ov-batt-cap-text');
                     if (ovCapText) ovCapText.innerText = `${cap} · ${text}`;
@@ -2802,7 +2870,16 @@ Type a command below and press Enter.</div>
                     if (ovUsb) ovUsb.innerText = isValidVal(b.usb_type) ? b.usb_type : 'N/A';
 
                     const ovPwr = document.getElementById('ov-batt-pwr');
-                    if (ovPwr) ovPwr.innerText = `${pwr} (${volt} / ${cur})`;
+                    if (ovPwr) {
+                        if (b.status_badge === 'charging') {
+                            ovPwr.innerText = `充电 ${pwr} (${volt} / +${Math.abs(b.current_ma)} mA)`;
+                        } else if (b.status_badge === 'bypass') {
+                            const uW = typeof b.usb_power_w === 'number' ? ` · 外部 ${b.usb_power_w} W` : '';
+                            ovPwr.innerText = `芯片直供 0W 浮充 (${volt} · 微放电 ${Math.abs(b.current_ma || 0)} mA${uW})`;
+                        } else {
+                            ovPwr.innerText = `${pwr} (${volt} / ${cur})`;
+                        }
+                    }
 
                     const ovHealth = document.getElementById('ov-batt-health');
                     if (ovHealth) {

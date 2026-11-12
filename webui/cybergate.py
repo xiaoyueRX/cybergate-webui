@@ -551,7 +551,7 @@ def _get_system_status():
     """Collect hardware, thermal, storage, interface, and service toggle status."""
     status = {}
 
-    # 1. Battery & Power Thermals
+    # 1. Battery & Power Thermals (Accurate State Machine & True Metric Separation)
     try:
         def read_file(p):
             try:
@@ -573,57 +573,111 @@ def _get_system_status():
 
         usb_present_raw = read_file("/sys/class/power_supply/usb/present")
         usb_present = (usb_present_raw == "1") if usb_present_raw != "" else None
-        usb_type_raw = read_file("/sys/class/power_supply/usb/type") or "N/A"
+        usb_type_raw = read_file("/sys/class/power_supply/usb/type")
         usb_volt_raw = read_file("/sys/class/power_supply/usb/voltage_now")
+        usb_cur_raw = read_file("/sys/class/power_supply/usb/input_current_now")
         pd_active = read_file("/sys/class/power_supply/usb/pd_active") == "1"
         bypass_raw = read_file("/sys/class/power_supply/usb/enable_bypass_mode")
-        suspend_raw = read_file("/sys/class/power_supply/battery/input_suspend")
+        input_suspend_raw = read_file("/sys/class/power_supply/battery/input_suspend")
         bypass_mode = bypass_raw == "1"
-        input_suspend = suspend_raw == "1"
-        bypass_active = (bypass_mode or input_suspend) if (bypass_raw != "" or suspend_raw != "") else None
+        input_suspend = input_suspend_raw == "1"
 
         temp_c = round(float(temp) / 10.0, 1) if temp else None
         charger_temp_c = round(float(charger_temp) / 10.0, 1) if charger_temp else None
-        current_ma = round(float(current) / 1000.0, 1) if current else None
+        raw_current_ma = round(float(current) / 1000.0, 1) if current else None
         volt_v = round(float(voltage) / 1000000.0, 2) if voltage else None
-        power_w = round(abs(current_ma * volt_v) / 1000.0, 2) if (current_ma is not None and volt_v is not None) else None
 
-        # Determine human-readable status
-        if bypass_mode or (usb_present and (input_suspend or batt_status == "Discharging")):
-            status_text = "旁路供电"
-            status_desc = "旁路供电保护中 (插电不伤电池)"
-            status_icon = "🛡️"
-            status_badge = "bypass"
-        elif batt_status == "Charging":
-            status_text = "极速快充" if pd_active else "正在充电"
-            cur_str = f" (+{current_ma} mA)" if current_ma is not None else ""
-            status_desc = ("USB-PD 快速充电中" if pd_active else "正在充电中") + cur_str
-            status_icon = "⚡"
+        # USB adapter input metrics (Type-C 适配器整机供电输入)
+        usb_volt_v = None
+        if usb_volt_raw:
+            try:
+                uv = float(usb_volt_raw) / 1000000.0
+                if uv > 0:
+                    usb_volt_v = round(uv, 1)
+            except Exception:
+                pass
+
+        usb_power_w = None
+        if usb_cur_raw and usb_volt_v is not None:
+            try:
+                ua = float(usb_cur_raw) / 1000000.0
+                if ua > 0:
+                    usb_power_w = round(ua * usb_volt_v, 2)
+            except Exception:
+                pass
+
+        if pd_active or ("PD" in usb_type_raw.upper()):
+            usb_type_label = f"USB-PD ({usb_volt_v}V)" if usb_volt_v is not None else "USB-PD"
+        else:
+            usb_type_label = usb_type_raw or "N/A"
+
+        # Determine true battery charge/discharge and power state
+        # Charging check must be strictly evaluated first: if battery status is Charging, it is absorbing power, NOT bypass!
+        if batt_status == "Charging":
             status_badge = "charging"
+            status_icon = "⚡"
+            if pd_active or ("PD" in usb_type_raw.upper()):
+                status_text = "USB-PD 快充"
+            else:
+                status_text = "正在充电"
+            # Normalize current to positive charge current into battery
+            current_ma = abs(raw_current_ma) if raw_current_ma is not None else None
+            power_w = round(abs(raw_current_ma * volt_v) / 1000.0, 2) if (raw_current_ma is not None and volt_v is not None) else None
+            cur_str = f"+{current_ma} mA" if current_ma is not None else "N/A"
+            status_desc = f"智能回充至 75% 保护阈值中 ({cur_str} · {power_w} W)" if (cur_str != "N/A" and power_w is not None) else f"充电中 ({cur_str})"
+            bypass_active = False
+
+        elif usb_present is True and (input_suspend or batt_status in ("Discharging", "Not charging", "Full")):
+            # Connected to USB power and battery charging is suspended -> True hardware bypass direct supply
+            status_badge = "bypass"
+            status_icon = "🛡️"
+            status_text = "旁路供电"
+            # In bypass mode, battery is idle or slightly supplementing peak load; record actual small battery discharge
+            current_ma = raw_current_ma
+            # Battery power is near zero or small discharge
+            power_w = round(abs((raw_current_ma or 0) * volt_v) / 1000.0, 2) if (raw_current_ma is not None and volt_v is not None) else 0.0
+            status_desc = "硬件旁路直供中 (已停充电池，外部电源直供芯片)"
+            bypass_active = True
+
         elif batt_status == "Full":
+            status_badge = "full"
+            status_icon = "🟢"
             status_text = "已充满"
             status_desc = "电池已达 100% 满电保护状态"
-            status_icon = "🟢"
-            status_badge = "full"
+            current_ma = 0.0
+            power_w = 0.0
+            bypass_active = (usb_present is True)
+
         elif batt_status == "Not charging":
+            status_badge = "not_charging"
+            status_icon = "⏸️"
             status_text = "停止充电"
             status_desc = "达到充电上限，保护性停充"
-            status_icon = "⏸️"
-            status_badge = "not_charging"
-        elif batt_status:
-            status_text = "电池放电"
-            cur_str = f" (-{abs(current_ma)} mA)" if current_ma is not None else ""
-            status_desc = f"纯电池供电中{cur_str}"
-            status_icon = "🔋"
-            status_badge = "discharging"
-        else:
-            status_text = "N/A"
-            status_desc = "未读取到电池状态"
-            status_icon = "🔋"
-            status_badge = "unknown"
+            current_ma = 0.0
+            power_w = 0.0
+            bypass_active = (usb_present is True)
 
-        full_mah = round(int(charge_full) / 1000) if (charge_full and charge_full.isdigit()) else None
-        design_mah = round(int(charge_full_design) / 1000) if (charge_full_design and charge_full_design.isdigit()) else None
+        elif batt_status == "Discharging" or (raw_current_ma and raw_current_ma > 0):
+            status_badge = "discharging"
+            status_icon = "🔋"
+            status_text = "电池放电"
+            current_ma = -abs(raw_current_ma) if raw_current_ma is not None else None
+            power_w = round(abs(raw_current_ma * volt_v) / 1000.0, 2) if (raw_current_ma is not None and volt_v is not None) else None
+            cur_str = f"{abs(raw_current_ma)} mA" if raw_current_ma is not None else "N/A"
+            status_desc = f"纯电池供电运行中 (-{cur_str})"
+            bypass_active = False
+
+        else:
+            status_badge = "unknown"
+            status_icon = "❓"
+            status_text = batt_status or "N/A"
+            status_desc = "电池状态监测中"
+            current_ma = raw_current_ma
+            power_w = None
+            bypass_active = False
+
+        full_mah = round(int(charge_full) / 1000) if (charge_full and charge_full.isdigit() and int(charge_full) > 0) else None
+        design_mah = round(int(charge_full_design) / 1000) if (charge_full_design and charge_full_design.isdigit() and int(charge_full_design) > 0) else None
         health_pct = round((full_mah / design_mah) * 100, 1) if (full_mah and design_mah) else None
 
         status["battery"] = {
@@ -633,6 +687,7 @@ def _get_system_status():
             "current_ma": current_ma,
             "voltage_v": volt_v,
             "power_w": power_w,
+            "usb_power_w": usb_power_w,
             "status": batt_status or "N/A",
             "status_text": status_text,
             "status_desc": status_desc,
@@ -644,7 +699,7 @@ def _get_system_status():
             "charge_full_mah": full_mah,
             "design_mah": design_mah,
             "usb_present": usb_present,
-            "usb_type": f"USB-PD ({round(int(usb_volt_raw)/1000000)}V)" if (pd_active and usb_volt_raw.isdigit() and int(usb_volt_raw) >= 5000000) else ("USB-PD" if (pd_active or "PD" in usb_type_raw) else usb_type_raw),
+            "usb_type": usb_type_label,
             "bypass_active": bypass_active
         }
     except Exception as e:
